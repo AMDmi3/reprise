@@ -23,7 +23,6 @@ jobs:
           sudo dd if=/dev/zero of=zfs.img bs=1M count=128
           device=$(sudo losetup --find --show zfs.img)
           sudo zpool create tank $device
-          sudo zfs allow $(whoami) clone,create,destroy,mount,rollback,snapshot tank
           zpool list
           zfs list -tall
       - name: Check with flake8
@@ -33,7 +32,8 @@ jobs:
       - name: Check with isort
         run: make isort-check
       - name: Run unit tests
-        run: make test
+        # superuser is required for ZFS operations
+        run: sudo -E env "PATH=$PATH" make test
         env:
           PYTEST_ARGS: --cov-report=xml --cov=porttester
           PORTTESTER_TEST_ZFS_POOL: tank
