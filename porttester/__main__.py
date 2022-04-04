@@ -20,6 +20,7 @@ import asyncio
 import logging
 import os
 import signal
+import sys
 from pathlib import Path
 
 from porttester.execute import execute
@@ -88,7 +89,7 @@ class PortTester:
             logging.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
-    async def run(self) -> None:
+    async def run(self) -> bool:
         for jail_name in _USE_JAILS:
             master_zfs = await self._get_prepared_jail(jail_name)
 
@@ -196,7 +197,7 @@ class PortTester:
 
                 if returncode != 0:
                     print('failed')
-                    return
+                    return False
 
                 returncode = await jail.execute_by_line(
                     printline,
@@ -205,11 +206,13 @@ class PortTester:
 
                 if returncode != 0:
                     print('failure')
-                    return
+                    return False
 
                 print('done')
             finally:
                 await self._cleanup_jail(instance_zfs.get_path())
+
+        return True
 
 
 def sig_handler() -> None:
@@ -251,7 +254,7 @@ async def main() -> None:
         distfilesdir=args.distfiles
     )
 
-    await porttester.run()
+    sys.exit(0 if await porttester.run() else 1)
 
 
 asyncio.run(main())
