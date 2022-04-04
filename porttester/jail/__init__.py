@@ -18,7 +18,7 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from porttester.commands import JAIL_CMD, JEXEC_CMD, JLS_CMD
 from porttester.execute import execute
@@ -36,24 +36,16 @@ class Jail(Resource):
     async def execute(self, program: str, *args: Any, **kwargs: Any) -> list[str]:
         return await execute(JEXEC_CMD, '-l', str(self._jid), program, *args, **kwargs)
 
-    async def execute_by_line(self, process_line: Callable[[str], None], program: str, *args: Any, **kwargs: Any) -> int:
+    async def execute_by_line(self, program: str, *args: Any, **kwargs: Any) -> int:
         proc = await asyncio.create_subprocess_exec(
             JEXEC_CMD, '-l', str(self._jid),
             program, *args, **kwargs,
             stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
+            stdout=None,
+            stderr=None,
         )
 
-        async def line_reader() -> None:
-            assert proc.stdout is not None
-            while line := await proc.stdout.readline():
-                process_line(line.decode('utf-8').rstrip('\n'))
-
-        task = asyncio.create_task(line_reader())
-
-        await proc.wait()
-        await task
+        await proc.communicate()
 
         assert proc.returncode is not None
         return proc.returncode

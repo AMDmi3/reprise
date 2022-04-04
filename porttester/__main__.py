@@ -50,6 +50,16 @@ def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
         fd.write(data)
 
 
+def unicalize(items: list[str]) -> list[str]:
+    res = []
+    seen = set()
+    for item in items:
+        if item not in seen:
+            res.append(item)
+            seen.add(item)
+    return res
+
+
 class PortTester:
     _workdir: Workdir
     _portsdir: Path
@@ -86,7 +96,9 @@ class PortTester:
             logging.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
-    async def run(self, port: str) -> bool:
+    async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
+        all_ports = unicalize(ports_to_rebuild + ports_to_test)
+
         for jail_name in _USE_JAILS:
             master_zfs = await self._get_prepared_jail(jail_name)
 
@@ -133,108 +145,111 @@ class PortTester:
                 logging.debug('starting jail')
                 jail = await start_jail(instance_zfs.get_path(), networking=True, hostname='portester')
 
-                def printline(line: str) -> None:
-                    print(line)
+                logging.debug('bootstrapping pkg')
 
-                logging.debug('installing pkg')
-
-                returncode = await jail.execute_by_line(
-                    printline,
-                    'pkg', 'bootstrap', '-y',
-                )
+                await jail.execute('pkg', 'bootstrap', '-q', '-y')
 
                 logging.debug('gathering depends')
 
-                depend_vars = await jail.execute(
-                    'make', '-C', str(Path('/usr/ports') / port),
-                    '-V', 'BUILD_DEPENDS',
-                    '-V', 'RUN_DEPENDS',
-                    '-V', 'LIB_DEPENDS',
-                    '-V', 'TEST_DEPENDS',
-                )
+                depend_origins = set()
+
+                for port in all_ports:
+                    depends_lines = await jail.execute(
+                        'make', '-C', str(Path('/usr/ports') / port),
+                        '-V', 'BUILD_DEPENDS',
+                        '-V', 'RUN_DEPENDS',
+                        '-V', 'LIB_DEPENDS',
+                        *(('-V', 'TEST_DEPENDS') if port in ports_to_test else ())
+                    )
+
+                    for depend in ' '.join(depends_lines).split():
+                        depend_origins.add(depend.split(':')[1])
 
                 depends = set()
 
-                for depend in ' '.join(depend_vars).split():
-                    deptest, depport = depend.split(':', 1)
-
-                    flavor_args = []
-                    if '@' in depport:
-                        depport, depflavor = depport.split('@', 1)
-                        flavor_args = ['FLAVOR=' + depflavor]
+                for depend in depend_origins:
+                    if '@' in depend:
+                        origin, flavor = depend.split('@', 1)
+                        flavor_args = ['FLAVOR=' + flavor]
+                    else:
+                        origin = depend
+                        flavor_args = []
 
                     pkgname = (await jail.execute(
-                        'env', *flavor_args, 'make', '-C', f'/usr/ports/{depport}', '-V', 'PKGNAME'
+                        'env', *flavor_args, 'make', '-C', f'/usr/ports/{origin}', '-V', 'PKGNAME'
                     ))[0]
 
                     depends.add(pkgname.rsplit('-', 1)[0])
 
-                logging.debug('installing depends')
+                if depends:
+                    logging.debug(f'installing {len(depends)} dependencies from packages')
 
-                returncode = await jail.execute_by_line(
-                    printline,
-                    'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-y', *depends
-                )
+                    await jail.execute(
+                        'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-q', '-y', *depends
+                    )
 
-                logging.debug('force-removing the package to rebuild it from ports')
+                for port in all_ports:
+                    logging.debug(f'fetching {port} for rebuild from port')
 
-                returncode = await jail.execute_by_line(
-                    printline,
-                    'env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-f', port
-                )
+                    returncode = await jail.execute_by_line(
+                        'env',
+                        'BATCH=1',
+                        'DISTDIR=/distfiles',
+                        'WRKDIRPREFIX=/work',
+                        'PKG_ADD=false',
+                        'USE_PACKAGE_DEPENDS_ONLY=1',
+                        'make', '-C', f'/usr/ports/{port}', 'checksum'
+                    )
 
-                logging.debug('running make checksum')
+                    if returncode != 0:
+                        print('failure')
+                        return False
 
-                returncode = await jail.execute_by_line(
-                    printline,
-                    'env',
-                    'BATCH=1',
-                    'DISTDIR=/distfiles',
-                    'WRKDIRPREFIX=/work',
-                    'PKG_ADD=false',
-                    'USE_PACKAGE_DEPENDS_ONLY=1',
-                    'make', '-C', f'/usr/ports/{port}', 'checksum'
-                )
-
-                logging.debug('restating jail with disabled network')
+                logging.debug('restarting jail with disabled network')
 
                 await jail.destroy()
 
                 jail = await start_jail(instance_zfs.get_path(), networking=False, hostname='porttester_nonet')
 
-                logging.debug('running make install')
+                for port in all_ports:
+                    logging.debug(f'rebuilding {port} from ports')
 
-                returncode = await jail.execute_by_line(
-                    printline,
-                    'env',
-                    'BATCH=1',
-                    'DISTDIR=/distfiles',
-                    'WRKDIRPREFIX=/work',
-                    'PKG_ADD=false',
-                    'USE_PACKAGE_DEPENDS_ONLY=1',
-                    'make', '-C', f'/usr/ports/{port}', 'install'
-                )
+                    await jail.execute_by_line(
+                        'env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', port
+                    )
 
-                if returncode != 0:
-                    print('failed')
-                    return False
+                    logging.debug('running make install')
 
-                returncode = await jail.execute_by_line(
-                    printline,
-                    'env',
-                    'BATCH=1',
-                    'DISTDIR=/nonexeistent',
-                    'WRKDIRPREFIX=/work',
-                    'PKG_ADD=false',
-                    'USE_PACKAGE_DEPENDS_ONLY=1',
-                    'make', '-C', f'/usr/ports/{port}', 'test'
-                )
+                    returncode = await jail.execute_by_line(
+                        'env',
+                        'BATCH=1',
+                        'DISTDIR=/distfiles',
+                        'WRKDIRPREFIX=/work',
+                        'PKG_ADD=false',
+                        'USE_PACKAGE_DEPENDS_ONLY=1',
+                        'make', '-C', f'/usr/ports/{port}', 'install'
+                    )
 
-                if returncode != 0:
-                    print('failure')
-                    return False
+                    if returncode != 0:
+                        print('failed')
+                        return False
 
-                print('done')
+                    if port in ports_to_test:
+                        logging.debug('running make test')
+
+                        returncode = await jail.execute_by_line(
+                            'env',
+                            'BATCH=1',
+                            'DISTDIR=/nonexeistent',
+                            'WRKDIRPREFIX=/work',
+                            'PKG_ADD=false',
+                            'USE_PACKAGE_DEPENDS_ONLY=1',
+                            'make', '-C', f'/usr/ports/{port}', 'test'
+                        )
+
+                        if returncode != 0:
+                            print('failure')
+                            return False
             finally:
                 await self._cleanup_jail(instance_zfs.get_path())
 
@@ -252,6 +267,7 @@ async def parse_arguments() -> argparse.Namespace:
     parser.add_argument('--portstree', default='/usr/ports', metavar='PATH', help='ports tree directory to use in jails')
     parser.add_argument('--distfiles', default=AUTODETECT, metavar='PATH', help='distfiles directory tree to use in jails')
 
+    parser.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', help='port origin(s) to rebuild from ports')
     parser.add_argument('ports', metavar='PORT', nargs='+', help='port origin(s) to test')
 
     args = parser.parse_args()
@@ -263,6 +279,9 @@ async def parse_arguments() -> argparse.Namespace:
             args.distfiles = distdir[0]
         else:
             raise RuntimeError('cannot autodetect distfiles location')
+
+    if args.rebuild is None:
+        args.rebuild = []
 
     return args
 
@@ -282,14 +301,9 @@ async def main() -> None:
         distfilesdir=args.distfiles
     )
 
-    final_res = True
-    for port in args.ports:
-        print(f'{port}: testing...')
-        res = await porttester.run(port)
-        print(f'{port}: {"success" if res else "failure"}')
-        final_res = final_res and res
+    res = await porttester.run(args.ports, args.rebuild)
 
-    sys.exit(0 if final_res else 1)
+    sys.exit(0 if res else 1)
 
 
 asyncio.run(main())
