@@ -131,7 +131,7 @@ class PortTester:
                 )
 
                 logging.debug('starting jail')
-                jail = await start_jail(instance_zfs.get_path(), networking=True)
+                jail = await start_jail(instance_zfs.get_path(), networking=True, hostname='portester')
 
                 def printline(line: str) -> None:
                     print(line)
@@ -200,7 +200,7 @@ class PortTester:
 
                 await jail.destroy()
 
-                jail = await start_jail(instance_zfs.get_path(), networking=False)
+                jail = await start_jail(instance_zfs.get_path(), networking=False, hostname='porttester_nonet')
 
                 logging.debug('running make install')
 

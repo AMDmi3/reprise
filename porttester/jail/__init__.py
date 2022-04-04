@@ -82,7 +82,7 @@ class Jail(Resource):
         return f'jail {self._jid}'
 
 
-async def start_jail(path: Path, networking: bool = False) -> Jail:
+async def start_jail(path: Path, networking: bool = False, hostname: str = '') -> Jail:
     networking_arg = 'inherit' if networking else 'disable'
 
     res = await execute(
@@ -93,7 +93,7 @@ async def start_jail(path: Path, networking: bool = False) -> Jail:
         f'path={path}',
         f'ip4={networking_arg}',
         f'ip6={networking_arg}',
-        'host.hostname=porttester'
+        f'host.hostname={hostname}'
     )
     jid = int(res[0])
     return Jail(jid, path)
