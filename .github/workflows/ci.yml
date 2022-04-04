@@ -36,5 +36,6 @@ jobs:
         run: make test
         env:
           PYTEST_ARGS: --cov-report=xml --cov=porttester
+          PORTTESTER_TEST_ZFS_POOL: tank
       - name: Push coverage info
         run: codecov

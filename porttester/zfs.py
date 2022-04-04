@@ -49,7 +49,7 @@ class ZFS(Resource):
     def __repr__(self) -> str:
         return f'ZFS(dataset={self._dataset}, mountpoint={self._mountpoint})'
 
-    def get_child(self, subpath: Path) -> 'ZFS':
+    def get_child(self, subpath: str | Path) -> 'ZFS':
         return ZFS(self._dataset / subpath, self._mountpoint / subpath if self._mountpoint is not None else None)
 
     def get_path(self) -> Path:
