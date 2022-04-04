@@ -187,7 +187,13 @@ class PortTester:
 
                 returncode = await jail.execute_by_line(
                     printline,
-                    'env', 'DISTDIR=/distfiles', 'WRKDIRPREFIX=/work', 'make', '-C', f'/usr/ports/{port}', 'install'
+                    'env',
+                    'BATCH=1',
+                    'DISTDIR=/distfiles',
+                    'WRKDIRPREFIX=/work',
+                    'PKG_ADD=false',
+                    'USE_PACKAGE_DEPENDS_ONLY=1',
+                    'make', '-C', f'/usr/ports/{port}', 'install'
                 )
 
                 if returncode != 0:
@@ -196,7 +202,13 @@ class PortTester:
 
                 returncode = await jail.execute_by_line(
                     printline,
-                    'env', 'DISTDIR=/distfiles', 'WRKDIRPREFIX=/work', 'make', '-C', f'/usr/ports/{port}', 'test'
+                    'env',
+                    'BATCH=1',
+                    'DISTDIR=/nonexeistent',
+                    'WRKDIRPREFIX=/work',
+                    'PKG_ADD=false',
+                    'USE_PACKAGE_DEPENDS_ONLY=1',
+                    'make', '-C', f'/usr/ports/{port}', 'test'
                 )
 
                 if returncode != 0:
