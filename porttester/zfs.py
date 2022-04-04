@@ -35,7 +35,7 @@ def _optional_args(*args: tuple[str, bool]) -> list[str]:
 
 
 async def get_zfs_pools() -> list[str]:
-    return await execute(ZPOOL_CMD, 'list', '-H', '-o', 'name', allow_failure = True)
+    return await execute(ZPOOL_CMD, 'list', '-H', '-o', 'name', allow_failure=True)
 
 
 class ZFS(Resource):
@@ -56,9 +56,6 @@ class ZFS(Resource):
         if self._mountpoint is None:
             raise RuntimeError('attempt to query unknown mountpoint')
         return self._mountpoint
-
-    def __repr__(self) -> str:
-        return f'ZFS dataset {self._dataset}'
 
     async def get_property(self, propname: str) -> str:
         result = await execute(ZFS_CMD, 'get', '-H', '-p', '-o', 'value', propname, f'{self._dataset}')
@@ -91,14 +88,13 @@ class ZFS(Resource):
                 logging.error(e)
                 await asyncio.sleep(1)
 
-
     async def snapshot(self, snapshot: str, recursive: bool = False) -> None:
         await execute(ZFS_CMD, 'snapshot', *_optional_args(('-r', recursive)), f'{self._dataset}@{snapshot}')
 
     async def clone_from(self, source: 'ZFS', snapshot: str, parents: bool = False) -> None:
         await execute(ZFS_CMD, 'clone', *_optional_args(('-p', parents)), f'{source._dataset}@{snapshot}', self._dataset)
 
-    async def destroy_snapshot(self, str, snapshot: str) -> None:
+    async def destroy_snapshot(self: str, snapshot: str) -> None:
         await execute(ZFS_CMD, 'destroy', f'{self._dataset}@{snapshot}')
 
     async def get_children(self, recursive: bool = False) -> list[str]:

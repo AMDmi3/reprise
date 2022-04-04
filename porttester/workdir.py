@@ -18,7 +18,6 @@
 import logging
 from pathlib import Path
 
-from porttester.execute import execute
 from porttester.zfs import ZFS, get_zfs_pools
 
 _PORTTESTER_HOME = 'porttester'

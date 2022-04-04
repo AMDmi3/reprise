@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with portester.  If not, see <http://www.gnu.org/licenses/>.
 
-import asyncio
 from pathlib import Path
 
 from porttester.commands import UMOUNT_CMD

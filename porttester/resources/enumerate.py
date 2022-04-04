@@ -30,7 +30,7 @@ from porttester.zfs import ZFS
 async def enumerate_mountpoints(prefix: Path) -> list[Resource]:
     res = []
 
-    for line in await execute(MOUNT_CMD,  '-p'):
+    for line in await execute(MOUNT_CMD, '-p'):
         src, dst, fstype, *_ = line.strip().split()
 
         if fstype == 'zfs':
