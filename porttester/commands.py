@@ -1,0 +1,7 @@
+MOUNT_CMD = 'mount'
+UMOUNT_CMD = 'umount'
+ZFS_CMD = 'zfs'
+ZPOOL_CMD = 'zpool'
+JAIL_CMD = 'jail'
+JEXEC_CMD = 'jexec'
+JLS_CMD = 'jls'
