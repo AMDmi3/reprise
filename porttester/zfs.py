@@ -91,6 +91,9 @@ class ZFS(Resource):
     async def snapshot(self, snapshot: str, recursive: bool = False) -> None:
         await execute(ZFS_CMD, 'snapshot', *_optional_args(('-r', recursive)), f'{self._dataset}@{snapshot}')
 
+    async def rollback(self, snapshot: str) -> None:
+        await execute(ZFS_CMD, 'rollback', '-R', '-f', f'{self._dataset}@{snapshot}')
+
     async def clone_from(self, source: 'ZFS', snapshot: str, parents: bool = False) -> None:
         await execute(ZFS_CMD, 'clone', *_optional_args(('-p', parents)), f'{source._dataset}@{snapshot}', f'{self._dataset}')
 
