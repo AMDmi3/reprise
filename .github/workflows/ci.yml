@@ -9,11 +9,23 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: "3.10.0"
+      - name: Install apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install zfsutils-linux
       - name: Install python dependencies
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
           pip install codecov
+      - name: Set up ZFS
+        run: |
+          sudo dd if=/dev/zero of=zfs.img bs=1M count=128
+          device=$(sudo losetup --find --show zfs.img)
+          sudo zpool create tank $device
+          sudo zfs allow $(whoami) clone,create,destroy,mount,rollback,snapshot tank
+          zpool list
+          zfs list -tall
       - name: Check with flake8
         run: make flake8
       - name: Check with mypy
