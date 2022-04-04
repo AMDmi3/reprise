@@ -240,7 +240,7 @@ class PortTester:
                         returncode = await jail.execute_by_line(
                             'env',
                             'BATCH=1',
-                            'DISTDIR=/nonexeistent',
+                            'DISTDIR=/distfiles',
                             'WRKDIRPREFIX=/work',
                             'PKG_ADD=false',
                             'USE_PACKAGE_DEPENDS_ONLY=1',
