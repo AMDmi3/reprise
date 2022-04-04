@@ -1,9 +1,10 @@
-from porttester.execute import execute
-from porttester.commands import ZFS_CMD, ZPOOL_CMD
-from porttester.resources import Resource
-from pathlib import Path
 import asyncio
 import logging
+from pathlib import Path
+
+from porttester.commands import ZFS_CMD, ZPOOL_CMD
+from porttester.execute import execute
+from porttester.resources import Resource
 
 
 def _properties_to_args(properties: dict[str, str] | None) -> list[str]:

@@ -1,6 +1,6 @@
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
-import asyncio
 
 
 @dataclass

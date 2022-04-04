@@ -1,8 +1,9 @@
-from porttester.execute import execute
-from porttester.commands import UMOUNT_CMD
-from porttester.resources import Resource
-from pathlib import Path
 import asyncio
+from pathlib import Path
+
+from porttester.commands import UMOUNT_CMD
+from porttester.execute import execute
+from porttester.resources import Resource
 
 
 class Mountpoint(Resource):

@@ -1,7 +1,7 @@
-from porttester.execute import execute
-from porttester.mount import Mountpoint
 from pathlib import Path
 
+from porttester.execute import execute
+from porttester.mount import Mountpoint
 
 _MOUNT_CMD = 'mount'
 

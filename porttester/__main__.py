@@ -1,17 +1,17 @@
-from porttester.workdir import Workdir
-from porttester.jail.populate import JailSpec, populate_jail
-from porttester.jail import Jail, start_jail
-from porttester.zfs import ZFS
-from porttester.mount import Mountpoint
-from porttester.mount.filesystems import mount_devfs, mount_tmpfs, mount_nullfs
-from porttester.resources.enumerate import enumerate_resources
 import asyncio
 import logging
-import signal
 import os
-from pathlib import Path
+import signal
 from contextlib import AsyncExitStack
+from pathlib import Path
 
+from porttester.jail import Jail, start_jail
+from porttester.jail.populate import JailSpec, populate_jail
+from porttester.mount import Mountpoint
+from porttester.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
+from porttester.resources.enumerate import enumerate_resources
+from porttester.workdir import Workdir
+from porttester.zfs import ZFS
 
 _JAIL_SPECS = {
     '12-i386': JailSpec(version='12.3-RELEASE', architecture='i386'),
