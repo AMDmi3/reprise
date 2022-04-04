@@ -61,17 +61,17 @@ class ZFS(Resource):
         result = await execute(ZFS_CMD, 'get', '-H', '-p', '-o', 'value', propname, f'{self._dataset}')
         return result[0]
 
-    async def get_property_maybe(self, propname: str) -> str:
+    async def get_property_maybe(self, propname: str) -> str | None:
         result = await execute(ZFS_CMD, 'get', '-H', '-p', '-o', 'value', propname, f'{self._dataset}', allow_failure=True)
         return result[0] if result else None
 
-    async def resolve_mountpoint(self):
+    async def resolve_mountpoint(self) -> None:
         mountpoint, mounted = await asyncio.gather(
             self.get_property_maybe('mountpoint'),
             self.get_property_maybe('mounted')
         )
         if mountpoint is not None and mountpoint.startswith('/') and mounted == 'yes':
-            self._mountpoint = mountpoint
+            self._mountpoint = Path(mountpoint)
 
     async def exists(self) -> bool:
         return await self.get_property_maybe('name') is not None
@@ -92,9 +92,9 @@ class ZFS(Resource):
         await execute(ZFS_CMD, 'snapshot', *_optional_args(('-r', recursive)), f'{self._dataset}@{snapshot}')
 
     async def clone_from(self, source: 'ZFS', snapshot: str, parents: bool = False) -> None:
-        await execute(ZFS_CMD, 'clone', *_optional_args(('-p', parents)), f'{source._dataset}@{snapshot}', self._dataset)
+        await execute(ZFS_CMD, 'clone', *_optional_args(('-p', parents)), f'{source._dataset}@{snapshot}', f'{self._dataset}')
 
-    async def destroy_snapshot(self: str, snapshot: str) -> None:
+    async def destroy_snapshot(self, snapshot: str) -> None:
         await execute(ZFS_CMD, 'destroy', f'{self._dataset}@{snapshot}')
 
     async def get_children(self, recursive: bool = False) -> list[str]:

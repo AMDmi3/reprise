@@ -29,7 +29,7 @@ class Mountpoint(Resource):
         self._path = path
 
     async def destroy(self) -> None:
-        await execute(UMOUNT_CMD, '-f', self._path)
+        await execute(UMOUNT_CMD, '-f', f'{self._path}')
 
     def get_path(self) -> Path:
         return self._path

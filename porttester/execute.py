@@ -18,8 +18,7 @@
 import asyncio
 
 
-@staticmethod
-async def execute(program: str, *args: list[str], allow_failure: bool = False) -> list[str]:
+async def execute(program: str, *args: str, allow_failure: bool = False) -> list[str]:
     proc = await asyncio.create_subprocess_exec(
         program, *args,
         stdout=asyncio.subprocess.PIPE,

@@ -31,7 +31,7 @@ class Workdir:
     root: ZFS
 
     @staticmethod
-    async def initialize(dataset: Path | None = None) -> ZFS:
+    async def initialize(dataset: Path | None = None) -> 'Workdir':
         if dataset is None:
             pools = await get_zfs_pools()
 
@@ -40,13 +40,13 @@ class Workdir:
             elif len(pools) > 1:
                 raise AutocreateFailure('multiple ZFS pools detected, please specify manually')
 
-            root = ZFS(Path(pools[0]) / _PORTTESTER_HOME)
-        else:
-            root = ZFS(dataset)
+            dataset = Path(pools[0]) / _PORTTESTER_HOME
+
+        root = ZFS(dataset)
 
         if not await root.exists():
             try:
-                logging.debug(f'creating main dataset at {root.dataset}')
+                logging.debug(f'creating main dataset at {dataset}')
                 await root.create()
             except RuntimeError as e:
                 raise AutocreateFailure('cannot create root dataset') from e

@@ -67,14 +67,14 @@ class PortTester:
 
         if await jail.exists() and not (jail.get_path() / 'usr').exists():
             logging.debug(f'jail {name} is incomplete, destroying')
-            await jail.destroy(recursive=True)
+            await jail.destroy()
 
         if not await jail.exists():
             logging.debug(f'creating jail {name}')
             await jail.create(parents=True)
 
             logging.debug(f'populating jail {name}')
-            await populate_jail(spec, jail.mountpoint)
+            await populate_jail(spec, jail.get_path())
 
             await jail.snapshot('clean')
 
@@ -87,7 +87,7 @@ class PortTester:
             logging.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
-    async def run(self):
+    async def run(self) -> None:
         for jail_name in _USE_JAILS:
             master_zfs = await self._get_prepared_jail(jail_name)
 
@@ -134,7 +134,7 @@ class PortTester:
                 logging.debug('starting jail')
                 jail = await start_jail(instance_zfs.get_path(), networking=True)
 
-                def printline(line: str):
+                def printline(line: str) -> None:
                     print(line)
 
                 logging.debug('installing pkg')
@@ -211,11 +211,11 @@ class PortTester:
                 await self._cleanup_jail(instance_zfs.get_path())
 
 
-def sig_handler():
+def sig_handler() -> None:
     print('Interrupted')
 
 
-async def main():
+async def main() -> None:
     logging.basicConfig(level=logging.DEBUG)
 
     asyncio.get_running_loop().add_signal_handler(signal.SIGINT, sig_handler)

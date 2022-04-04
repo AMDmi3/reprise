@@ -25,15 +25,15 @@ _MOUNT_CMD = 'mount'
 
 async def mount_nullfs(source: Path, destination: Path, readonly: bool = True) -> Mountpoint:
     readonly_arg = ['-o', 'ro'] if readonly else []
-    await execute(_MOUNT_CMD, '-t', 'nullfs', *readonly_arg, source, destination)
+    await execute(_MOUNT_CMD, '-t', 'nullfs', *readonly_arg, str(source), str(destination))
     return Mountpoint(destination)
 
 
 async def mount_devfs(destination: Path) -> Mountpoint:
-    await execute(_MOUNT_CMD, '-t', 'devfs', 'dev', destination)
+    await execute(_MOUNT_CMD, '-t', 'devfs', 'dev', str(destination))
     return Mountpoint(destination)
 
 
 async def mount_tmpfs(destination: Path) -> Mountpoint:
-    await execute(_MOUNT_CMD, '-t', 'tmpfs', 'tmp', destination)
+    await execute(_MOUNT_CMD, '-t', 'tmpfs', 'tmp', str(destination))
     return Mountpoint(destination)
