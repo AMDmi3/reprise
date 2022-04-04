@@ -83,7 +83,7 @@ class Jail(Resource):
 
 
 async def start_jail(path: Path, networking: bool = False) -> Jail:
-    networking_arg = 'inherit' if networking else 'disabled'
+    networking_arg = 'inherit' if networking else 'disable'
 
     res = await execute(
         JAIL_CMD,
