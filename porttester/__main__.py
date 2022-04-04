@@ -42,9 +42,6 @@ _JAIL_SPECS = {
 _USE_JAILS = ['13-amd64']
 
 
-_PORT = 'www/py-yarl'
-
-
 def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
     with open(path, 'r') as fd:
         data = fd.read().replace(pattern, replacement)
@@ -89,7 +86,7 @@ class PortTester:
             logging.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
-    async def run(self) -> bool:
+    async def run(self, port: str) -> bool:
         for jail_name in _USE_JAILS:
             master_zfs = await self._get_prepared_jail(jail_name)
 
@@ -149,7 +146,7 @@ class PortTester:
                 logging.debug('gathering depends')
 
                 depend_vars = await jail.execute(
-                    'make', '-C', str(Path('/usr/ports') / _PORT),
+                    'make', '-C', str(Path('/usr/ports') / port),
                     '-V', 'BUILD_DEPENDS',
                     '-V', 'RUN_DEPENDS',
                     '-V', 'LIB_DEPENDS',
@@ -159,20 +156,18 @@ class PortTester:
                 depends = set()
 
                 for depend in ' '.join(depend_vars).split():
-                    test, port = depend.split(':', 1)
+                    deptest, depport = depend.split(':', 1)
 
                     flavor_args = []
-                    if '@' in port:
-                        port, flavor = port.split('@', 1)
-                        flavor_args = ['FLAVOR=' + flavor]
+                    if '@' in depport:
+                        depport, depflavor = depport.split('@', 1)
+                        flavor_args = ['FLAVOR=' + depflavor]
 
                     pkgname = (await jail.execute(
-                        'env', *flavor_args, 'make', '-C', f'/usr/ports/{port}', '-V', 'PKGNAME'
+                        'env', *flavor_args, 'make', '-C', f'/usr/ports/{depport}', '-V', 'PKGNAME'
                     ))[0]
 
                     depends.add(pkgname.rsplit('-', 1)[0])
-
-                print(depends)
 
                 logging.debug('installing depends')
 
@@ -185,14 +180,14 @@ class PortTester:
 
                 returncode = await jail.execute_by_line(
                     printline,
-                    'env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-f', _PORT
+                    'env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-f', port
                 )
 
                 logging.debug('running make install')
 
                 returncode = await jail.execute_by_line(
                     printline,
-                    'env', 'DISTDIR=/distfiles', 'WRKDIRPREFIX=/work', 'make', '-C', f'/usr/ports/{_PORT}', 'install'
+                    'env', 'DISTDIR=/distfiles', 'WRKDIRPREFIX=/work', 'make', '-C', f'/usr/ports/{port}', 'install'
                 )
 
                 if returncode != 0:
@@ -201,7 +196,7 @@ class PortTester:
 
                 returncode = await jail.execute_by_line(
                     printline,
-                    'env', 'DISTDIR=/distfiles', 'WRKDIRPREFIX=/work', 'make', '-C', f'/usr/ports/{_PORT}', 'test'
+                    'env', 'DISTDIR=/distfiles', 'WRKDIRPREFIX=/work', 'make', '-C', f'/usr/ports/{port}', 'test'
                 )
 
                 if returncode != 0:
@@ -223,13 +218,15 @@ async def parse_arguments() -> argparse.Namespace:
     AUTODETECT = 'autodect'
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--ports', default='/usr/ports', metavar='PATH', help='ports tree directory to use in jails')
+    parser.add_argument('--portstree', default='/usr/ports', metavar='PATH', help='ports tree directory to use in jails')
     parser.add_argument('--distfiles', default=AUTODETECT, metavar='PATH', help='distfiles directory tree to use in jails')
+
+    parser.add_argument('ports', metavar='PORT', nargs='+', help='port origin(s) to test')
 
     args = parser.parse_args()
 
     if args.distfiles == AUTODETECT:
-        distdir = await execute('make', '-C', args.ports, '-V', 'DISTDIR')
+        distdir = await execute('make', '-C', args.portstree, '-V', 'DISTDIR')
 
         if distdir and distdir[0] and os.path.exists(distdir[0]):
             args.distfiles = distdir[0]
@@ -250,11 +247,18 @@ async def main() -> None:
 
     porttester = PortTester(
         workdir=workdir,
-        portsdir=args.ports,
+        portsdir=args.portstree,
         distfilesdir=args.distfiles
     )
 
-    sys.exit(0 if await porttester.run() else 1)
+    final_res = True
+    for port in args.ports:
+        print(f'{port}: testing...')
+        res = await porttester.run(port)
+        print(f'{port}: {"success" if res else "failure"}')
+        final_res = final_res and res
+
+    sys.exit(0 if final_res else 1)
 
 
 asyncio.run(main())
