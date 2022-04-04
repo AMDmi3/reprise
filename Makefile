@@ -9,10 +9,10 @@ test::
 	${PYTEST} ${PYTEST_ARGS} -v -rs
 
 flake8:
-	${FLAKE8} porttester # tests
+	${FLAKE8} ${FLAKE8_ARGS} --application-import-names=porttester porttester tests
 
 mypy:
-	${MYPY} porttester # tests
+	${MYPY} porttester tests
 
 isort-check::
 	${ISORT} ${ISORT_ARGS} --check $$(find . -name "*.py")
