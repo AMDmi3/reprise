@@ -18,6 +18,8 @@ jobs:
         run: make flake8
       - name: Check with mypy
         run: make mypy
+      - name: Check with isort
+        run: make isort-check
       - name: Run unit tests
         run: make test
         env:
