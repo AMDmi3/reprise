@@ -1,5 +1,7 @@
 # porttester
 
+[![CI](https://github.com/AMDmi3/porttester/actions/workflows/ci.yml/badge.svg)](https://github.com/AMDmi3/porttester/actions/workflows/ci.yml)
+
 porttester is a tool primarily designed to test package production
 on FreeBSD.
 
