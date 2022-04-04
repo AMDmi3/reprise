@@ -176,12 +176,31 @@ class PortTester:
                     'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-y', *depends
                 )
 
-                logging.debug('force-removing the package')
+                logging.debug('force-removing the package to rebuild it from ports')
 
                 returncode = await jail.execute_by_line(
                     printline,
                     'env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-f', port
                 )
+
+                logging.debug('running make checksum')
+
+                returncode = await jail.execute_by_line(
+                    printline,
+                    'env',
+                    'BATCH=1',
+                    'DISTDIR=/distfiles',
+                    'WRKDIRPREFIX=/work',
+                    'PKG_ADD=false',
+                    'USE_PACKAGE_DEPENDS_ONLY=1',
+                    'make', '-C', f'/usr/ports/{port}', 'checksum'
+                )
+
+                logging.debug('restating jail with disabled network')
+
+                await jail.destroy()
+
+                jail = await start_jail(instance_zfs.get_path(), networking=False)
 
                 logging.debug('running make install')
 
