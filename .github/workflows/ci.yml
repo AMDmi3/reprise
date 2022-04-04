@@ -1,0 +1,26 @@
+name: CI
+on: [ push, pull_request ]
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10.0"
+      - name: Install python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install codecov
+      - name: Check with flake8
+        run: make flake8
+      - name: Check with mypy
+        run: make mypy
+      - name: Run unit tests
+        run: make test
+        env:
+          PYTEST_ARGS: --cov-report=xml --cov=porttester
+      - name: Push coverage info
+        run: codecov
