@@ -168,8 +168,8 @@ class PortTester:
 
                 for depend in depend_origins:
                     if '@' in depend:
-                        origin, flavor = depend.split('@', 1)
-                        flavor_args = ['FLAVOR=' + flavor]
+                        origin, oflavor = depend.split('@', 1)
+                        flavor_args = ['FLAVOR=' + oflavor]
                     else:
                         origin = depend
                         flavor_args = []
@@ -211,30 +211,29 @@ class PortTester:
                 jail = await start_jail(instance_zfs.get_path(), networking=False, hostname='porttester_nonet')
 
                 for port in all_ports:
-                    logging.debug(f'rebuilding {port} from ports')
+                    want_test = port in ports_to_test
 
-                    await jail.execute_by_line(
-                        'env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', port
-                    )
+                    installed_packages: list[tuple[str, str | None]] = []
 
-                    logging.debug('running make install')
+                    for pkgname in await jail.execute('pkg', 'query', '%n', port, allow_failure=True):
+                        pkgflavor: str | None = None
+                        for annotation in await jail.execute('pkg', 'query', '%At %Av', pkgname, allow_failure=True):
+                            annotation_type, annotation_value = annotation.split()
+                            if annotation_type == 'flavor':
+                                pkgflavor = annotation_value
+                        installed_packages.append((pkgname, pkgflavor))
 
-                    returncode = await jail.execute_by_line(
-                        'env',
-                        'BATCH=1',
-                        'DISTDIR=/distfiles',
-                        'WRKDIRPREFIX=/work',
-                        'PKG_ADD=false',
-                        'USE_PACKAGE_DEPENDS_ONLY=1',
-                        'make', '-C', f'/usr/ports/{port}', 'install'
-                    )
+                    if not installed_packages and not want_test:
+                        logging.debug(f'skipping {port}: not for testing and not installed')
+                        continue
 
-                    if returncode != 0:
-                        print('failed')
-                        return False
+                    for pkgname, flavor in installed_packages:
+                        flavorsuffix = f'@{flavor}' if flavor is not None else ''
+                        logging.debug(f'removing {pkgname} aka {port}{flavorsuffix} for rebuild')
 
-                    if port in ports_to_test:
-                        logging.debug('running make test')
+                        await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', pkgname)
+
+                        logging.debug(f'building {pkgname} aka {port}{flavorsuffix}')
 
                         returncode = await jail.execute_by_line(
                             'env',
@@ -243,7 +242,25 @@ class PortTester:
                             'WRKDIRPREFIX=/work',
                             'PKG_ADD=false',
                             'USE_PACKAGE_DEPENDS_ONLY=1',
-                            'make', '-C', f'/usr/ports/{port}', 'test'
+                            f'FLAVOR={flavor}',
+                            'make', '-C', f'/usr/ports/{port}', 'install'
+                        )
+
+                        if returncode != 0:
+                            print('failed')
+                            return False
+
+                    if port in ports_to_test:
+                        logging.debug(f'running make test for {port}')
+
+                        returncode = await jail.execute_by_line(
+                            'env',
+                            'BATCH=1',
+                            'DISTDIR=/distfiles',
+                            'WRKDIRPREFIX=/work',
+                            'PKG_ADD=false',
+                            'USE_PACKAGE_DEPENDS_ONLY=1',
+                            'make', '-C', f'/usr/ports/{port}', 'test',
                         )
 
                         if returncode != 0:
