@@ -102,7 +102,7 @@ class PortTester:
         for jail_name in _USE_JAILS:
             master_zfs = await self._get_prepared_jail(jail_name)
 
-            instance_name = f'{jail_name}-default'
+            instance_name = f'{jail_name}-{os.getpid()}'
 
             instance_zfs = self._workdir.get_jail_instance(instance_name)
 
@@ -114,7 +114,7 @@ class PortTester:
             await self._cleanup_jail(instance_zfs.get_path())
 
             try:
-                logging.debug('cloning instance')
+                logging.debug(f'cloning instance {instance_name}')
                 await instance_zfs.clone_from(master_zfs, 'clean', parents=True)
 
                 logging.debug('creating directories')
