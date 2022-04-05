@@ -127,7 +127,7 @@ class PortTester:
                     path.mkdir(parents=True, exist_ok=True)
 
                 logging.debug('installing resolv.conf')
-                with open(instance_zfs.get_path() / 'etc' / 'resolv.conv', 'w') as fd:
+                with open(instance_zfs.get_path() / 'etc' / 'resolv.conf', 'w') as fd:
                     fd.write('nameserver 8.8.8.8\n')
 
                 logging.debug('fixing pkg config')
