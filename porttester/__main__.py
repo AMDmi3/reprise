@@ -19,7 +19,6 @@ import argparse
 import asyncio
 import logging
 import os
-import signal
 import sys
 from pathlib import Path
 
@@ -256,10 +255,6 @@ class PortTester:
         return True
 
 
-def sig_handler() -> None:
-    print('Interrupted')
-
-
 async def parse_arguments() -> argparse.Namespace:
     AUTODETECT = 'autodect'
 
@@ -290,8 +285,6 @@ async def main() -> None:
     logging.basicConfig(level=logging.DEBUG)
 
     args = await parse_arguments()
-
-    asyncio.get_running_loop().add_signal_handler(signal.SIGINT, sig_handler)
 
     workdir = await Workdir.initialize()
 
