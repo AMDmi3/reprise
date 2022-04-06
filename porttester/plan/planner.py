@@ -19,7 +19,7 @@ import io
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from jsonslicer import JsonSlicer
 
@@ -32,7 +32,7 @@ from porttester.types import Port
 @dataclass
 class _TaskItem:
     task: Task
-    consumers: list['_TaskItem' | None]
+    consumers: list[Optional['_TaskItem']]
     visited: bool = False  # for topological sorting
 
 
