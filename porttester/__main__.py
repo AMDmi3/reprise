@@ -20,6 +20,7 @@ import asyncio
 import logging
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from porttester.execute import execute
@@ -57,6 +58,17 @@ def unicalize(items: list[str]) -> list[str]:
             res.append(item)
             seen.add(item)
     return res
+
+
+@dataclass
+class InstalledPackage:
+    origin: str
+    pkgname: str
+    flavor: str | None
+
+    def __repr__(self) -> str:
+        flavorarg = '@' + self.flavor if self.flavor is not None else ''
+        return f'InstalledPackage({self.pkgname} aka. {self.origin}{flavorarg})'
 
 
 class PortTester:
@@ -127,6 +139,19 @@ class PortTester:
             depends.add(pkgname.rsplit('-', 1)[0])
 
         return depends
+
+    async def _get_installed_packages_for_port(self, jail: Jail, port: str) -> list[InstalledPackage]:
+        res = []
+
+        for pkgname in await jail.execute('pkg', 'query', '%n', port, allow_failure=True):
+            flavor: str | None = None
+            for annotation in await jail.execute('pkg', 'query', '%At %Av', pkgname, allow_failure=True):
+                annotation_type, annotation_value = annotation.split()
+                if annotation_type == 'flavor':
+                    flavor = annotation_value
+            res.append(InstalledPackage(port, pkgname, flavor))
+
+        return res
 
     async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
         all_ports = unicalize(ports_to_rebuild + ports_to_test)
@@ -218,27 +243,20 @@ class PortTester:
                 for port in all_ports:
                     want_test = port in ports_to_test
 
-                    installed_packages: list[tuple[str, str | None]] = []
-
-                    for pkgname in await jail.execute('pkg', 'query', '%n', port, allow_failure=True):
-                        pkgflavor: str | None = None
-                        for annotation in await jail.execute('pkg', 'query', '%At %Av', pkgname, allow_failure=True):
-                            annotation_type, annotation_value = annotation.split()
-                            if annotation_type == 'flavor':
-                                pkgflavor = annotation_value
-                        installed_packages.append((pkgname, pkgflavor))
+                    installed_packages = await self._get_installed_packages_for_port(jail, port)
 
                     if not installed_packages and not want_test:
                         logging.debug(f'skipping {port}: not for testing and not installed')
                         continue
 
-                    for pkgname, flavor in installed_packages:
-                        flavorsuffix = f'@{flavor}' if flavor is not None else ''
-                        logging.debug(f'removing {pkgname} aka {port}{flavorsuffix} for rebuild')
+                    for package in installed_packages:
+                        logging.debug(f'removing {package} for rebuild')
 
-                        await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', pkgname)
+                        await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', package.pkgname)
 
-                        logging.debug(f'building {pkgname} aka {port}{flavorsuffix}')
+                        logging.debug(f'building {package}')
+
+                        flavorenv = ('FLAVOR=' + package.flavor,) if package.flavor is not None else ()
 
                         returncode = await jail.execute_by_line(
                             'env',
@@ -247,7 +265,7 @@ class PortTester:
                             'WRKDIRPREFIX=/work',
                             'PKG_ADD=false',
                             'USE_PACKAGE_DEPENDS_ONLY=1',
-                            f'FLAVOR={flavor}',
+                            *flavorenv,
                             'make', '-C', f'/usr/ports/{port}', 'install'
                         )
 
