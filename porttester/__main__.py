@@ -206,6 +206,8 @@ class PortTester:
 
                 await jail.execute('pkg', 'bootstrap', '-q', '-y')
 
+                await jail.execute('pkg', 'update', '-q')
+
                 logging.debug('gathering depends')
 
                 depends = await self._get_depends(jail, ports_to_test, want_test_depends=True) | await self._get_depends(jail, ports_to_rebuild, want_test_depends=False)
@@ -214,7 +216,7 @@ class PortTester:
                     logging.debug(f'installing {len(depends)} dependencies from packages')
 
                     await jail.execute(
-                        'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-q', '-y', *depends
+                        'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', *depends
                     )
 
                 for port in all_ports:
