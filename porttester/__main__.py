@@ -177,9 +177,70 @@ class PortTester:
                     'env', 'PKG_CACHEDIR=/packages', 'pkg', 'fetch', '-U', '-q', '-y', *depends
                 )
 
-    async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
+
+    async def _build_ports(self, jail: Jail, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
         all_ports = unicalize(ports_to_rebuild + ports_to_test)
 
+        depends = await self._get_depends(jail, ports_to_test, want_test_depends=True) | await self._get_depends(jail, ports_to_rebuild, want_test_depends=False)
+
+        if depends:
+            logging.debug(f'installing {len(depends)} dependencies from packages')
+
+            await jail.execute(
+                'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', *depends
+            )
+
+        for port in all_ports:
+            want_test = port in ports_to_test
+
+            installed_packages = await self._get_installed_packages_for_port(jail, port)
+
+            if not installed_packages and not want_test:
+                logging.debug(f'skipping {port}: not for testing and not installed')
+                continue
+
+            for package in installed_packages:
+                logging.debug(f'removing {package} for rebuild')
+
+                await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', package.pkgname)
+
+                logging.debug(f'building {package}')
+
+                flavorenv = ('FLAVOR=' + package.flavor,) if package.flavor is not None else ()
+
+                returncode = await jail.execute_by_line(
+                    'env',
+                    'BATCH=1',
+                    'DISTDIR=/distfiles',
+                    'WRKDIRPREFIX=/work',
+                    'PKG_ADD=false',
+                    'USE_PACKAGE_DEPENDS_ONLY=1',
+                    *flavorenv,
+                    'make', '-C', f'/usr/ports/{port}', 'install'
+                )
+
+                if returncode != 0:
+                    print('failed')
+                    return False
+
+            if port in ports_to_test:
+                logging.debug(f'running make test for {port}')
+
+                returncode = await jail.execute_by_line(
+                    'env',
+                    'BATCH=1',
+                    'DISTDIR=/distfiles',
+                    'WRKDIRPREFIX=/work',
+                    'PKG_ADD=false',
+                    'USE_PACKAGE_DEPENDS_ONLY=1',
+                    'make', '-C', f'/usr/ports/{port}', 'test',
+                )
+
+                if returncode != 0:
+                    print('failure')
+                    return False
+
+    async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
         for jail_name in _USE_JAILS:
             master_zfs = await self._get_prepared_jail(jail_name)
 
@@ -236,70 +297,13 @@ class PortTester:
 
                 await self._prefetch_everything(jail, ports_to_test + ports_to_rebuild)
 
-                depends = await self._get_depends(jail, ports_to_test, want_test_depends=True) | await self._get_depends(jail, ports_to_rebuild, want_test_depends=False)
-
-                if depends:
-                    logging.debug(f'installing {len(depends)} dependencies from packages')
-
-                    await jail.execute(
-                        'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', *depends
-                    )
-
-                logging.debug('restarting jail with disabled network')
+                logging.debug('restarting the jail with disabled network')
 
                 await jail.destroy()
-
                 jail = await start_jail(instance_zfs.get_path(), networking=False, hostname='porttester_nonet')
 
-                for port in all_ports:
-                    want_test = port in ports_to_test
-
-                    installed_packages = await self._get_installed_packages_for_port(jail, port)
-
-                    if not installed_packages and not want_test:
-                        logging.debug(f'skipping {port}: not for testing and not installed')
-                        continue
-
-                    for package in installed_packages:
-                        logging.debug(f'removing {package} for rebuild')
-
-                        await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', package.pkgname)
-
-                        logging.debug(f'building {package}')
-
-                        flavorenv = ('FLAVOR=' + package.flavor,) if package.flavor is not None else ()
-
-                        returncode = await jail.execute_by_line(
-                            'env',
-                            'BATCH=1',
-                            'DISTDIR=/distfiles',
-                            'WRKDIRPREFIX=/work',
-                            'PKG_ADD=false',
-                            'USE_PACKAGE_DEPENDS_ONLY=1',
-                            *flavorenv,
-                            'make', '-C', f'/usr/ports/{port}', 'install'
-                        )
-
-                        if returncode != 0:
-                            print('failed')
-                            return False
-
-                    if port in ports_to_test:
-                        logging.debug(f'running make test for {port}')
-
-                        returncode = await jail.execute_by_line(
-                            'env',
-                            'BATCH=1',
-                            'DISTDIR=/distfiles',
-                            'WRKDIRPREFIX=/work',
-                            'PKG_ADD=false',
-                            'USE_PACKAGE_DEPENDS_ONLY=1',
-                            'make', '-C', f'/usr/ports/{port}', 'test',
-                        )
-
-                        if returncode != 0:
-                            print('failure')
-                            return False
+                logging.debug('building ports')
+                await self._build_ports(jail, ports_to_test, ports_to_rebuild)
             finally:
                 await self._cleanup_jail(instance_zfs.get_path())
 
