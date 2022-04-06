@@ -17,7 +17,7 @@
 
 import io
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -32,7 +32,7 @@ from porttester.types import Port
 @dataclass
 class _TaskItem:
     task: Task
-    consumers: list['_TaskItem']
+    consumers: list['_TaskItem' | None]
     visited: bool = False  # for topological sorting
 
 
@@ -177,9 +177,9 @@ class Planner:
                 self._logger.debug(f'planned {item.port} as port, enqueued {len(portdepends.depends)} depend(s): {" ".join(map(str, portdepends.depends))}')
 
         # topological sort
-        topological_sorted = []
+        topological_sorted: list[_TaskItem] = []
 
-        def toposort(task: _TaskItem, stack: list[_TaskItem]):
+        def toposort(task: _TaskItem, stack: list[_TaskItem]) -> None:
             task.visited = True
 
             for consumer in task.consumers:
