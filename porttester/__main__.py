@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 from porttester.execute import execute
-from porttester.jail import start_jail
+from porttester.jail import Jail, start_jail
 from porttester.jail.populate import JailSpec, populate_jail
 from porttester.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
 from porttester.resources.enumerate import enumerate_resources
@@ -95,6 +95,39 @@ class PortTester:
             logging.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
+    async def _get_depends(self, jail: Jail, ports: list[str], want_test_depends: bool = False) -> set[str]:
+        depend_origins = set()
+
+        for port in ports:
+            depends_lines = await jail.execute(
+                'make', '-C', str(Path('/usr/ports') / port),
+                '-V', 'BUILD_DEPENDS',
+                '-V', 'RUN_DEPENDS',
+                '-V', 'LIB_DEPENDS',
+                *(('-V', 'TEST_DEPENDS') if want_test_depends else ())
+            )
+
+            for depend in ' '.join(depends_lines).split():
+                depend_origins.add(depend.split(':')[1])
+
+        depends = set()
+
+        for depend in depend_origins:
+            if '@' in depend:
+                origin, flavor = depend.split('@', 1)
+                flavor_args = ['FLAVOR=' + flavor]
+            else:
+                origin = depend
+                flavor_args = []
+
+            pkgname = (await jail.execute(
+                'env', *flavor_args, 'make', '-C', f'/usr/ports/{origin}', '-V', 'PKGNAME'
+            ))[0]
+
+            depends.add(pkgname.rsplit('-', 1)[0])
+
+        return depends
+
     async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
         all_ports = unicalize(ports_to_rebuild + ports_to_test)
 
@@ -150,35 +183,7 @@ class PortTester:
 
                 logging.debug('gathering depends')
 
-                depend_origins = set()
-
-                for port in all_ports:
-                    depends_lines = await jail.execute(
-                        'make', '-C', str(Path('/usr/ports') / port),
-                        '-V', 'BUILD_DEPENDS',
-                        '-V', 'RUN_DEPENDS',
-                        '-V', 'LIB_DEPENDS',
-                        *(('-V', 'TEST_DEPENDS') if port in ports_to_test else ())
-                    )
-
-                    for depend in ' '.join(depends_lines).split():
-                        depend_origins.add(depend.split(':')[1])
-
-                depends = set()
-
-                for depend in depend_origins:
-                    if '@' in depend:
-                        origin, oflavor = depend.split('@', 1)
-                        flavor_args = ['FLAVOR=' + oflavor]
-                    else:
-                        origin = depend
-                        flavor_args = []
-
-                    pkgname = (await jail.execute(
-                        'env', *flavor_args, 'make', '-C', f'/usr/ports/{origin}', '-V', 'PKGNAME'
-                    ))[0]
-
-                    depends.add(pkgname.rsplit('-', 1)[0])
+                depends = await self._get_depends(jail, ports_to_test, want_test_depends=True) | await self._get_depends(jail, ports_to_rebuild, want_test_depends=False)
 
                 if depends:
                     logging.debug(f'installing {len(depends)} dependencies from packages')
