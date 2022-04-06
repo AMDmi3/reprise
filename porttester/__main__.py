@@ -153,6 +153,30 @@ class PortTester:
 
         return res
 
+    async def _prefetch_everything(self, jail: Jail, ports: list[str]) -> None:
+        for port in ports:
+            logging.debug(f'fetching {port} distfiles')
+
+            returncode = await jail.execute_by_line(
+                'env',
+                'BATCH=1',
+                'DISTDIR=/distfiles',
+                'WRKDIRPREFIX=/work',
+                'PKG_ADD=false',
+                'USE_PACKAGE_DEPENDS_ONLY=1',
+                'make', '-C', f'/usr/ports/{port}', 'checksum'
+            )
+
+            if returncode != 0:
+                raise RuntimeError(f'fetch failed for {port}')
+
+            logging.debug(f'fetching {port} package depends')
+
+            if depends := await self._get_depends(jail, [port], want_test_depends=True):
+                await jail.execute(
+                    'env', 'PKG_CACHEDIR=/packages', 'pkg', 'fetch', '-U', '-q', '-y', *depends
+                )
+
     async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
         all_ports = unicalize(ports_to_rebuild + ports_to_test)
 
@@ -208,7 +232,9 @@ class PortTester:
 
                 await jail.execute('pkg', 'update', '-q')
 
-                logging.debug('gathering depends')
+                logging.debug('prefetching all potentially required ports and packages')
+
+                await self._prefetch_everything(jail, ports_to_test + ports_to_rebuild)
 
                 depends = await self._get_depends(jail, ports_to_test, want_test_depends=True) | await self._get_depends(jail, ports_to_rebuild, want_test_depends=False)
 
@@ -218,23 +244,6 @@ class PortTester:
                     await jail.execute(
                         'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', *depends
                     )
-
-                for port in all_ports:
-                    logging.debug(f'fetching {port} for rebuild from port')
-
-                    returncode = await jail.execute_by_line(
-                        'env',
-                        'BATCH=1',
-                        'DISTDIR=/distfiles',
-                        'WRKDIRPREFIX=/work',
-                        'PKG_ADD=false',
-                        'USE_PACKAGE_DEPENDS_ONLY=1',
-                        'make', '-C', f'/usr/ports/{port}', 'checksum'
-                    )
-
-                    if returncode != 0:
-                        print('failure')
-                        return False
 
                 logging.debug('restarting jail with disabled network')
 
