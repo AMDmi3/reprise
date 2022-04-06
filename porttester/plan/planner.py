@@ -17,7 +17,7 @@
 
 import io
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
@@ -30,9 +30,17 @@ from porttester.types import Port
 
 
 @dataclass
+class _TaskItem:
+    task: Task
+    consumers: list['_TaskItem']
+    visited: bool = False  # for topological sorting
+
+
+@dataclass
 class _QueueItem:
     port: Port | None = None
     pkgname: str | None = None
+    consumer: _TaskItem | None = None
 
 
 class Planner:
@@ -94,8 +102,7 @@ class Planner:
 
     async def prepare(self, origins_to_test: list[str], origins_to_rebuild: list[str]) -> Plan:
         queue = []
-        tasks: list[Task] = []
-        seen_packages = set()
+        tasks: dict[str, _TaskItem] = {}
 
         for origin in origins_to_test:
             queue.append(_QueueItem(port=Port(origin, await self._get_port_default_flavor(origin))))
@@ -106,16 +113,18 @@ class Planner:
             item = queue[queue_pos]
             queue_pos += 1
 
-            # either of item.pkgname or item.port may be undefined
+            # either of item.pkgname or item.port may be undefined, but we need both
             if item.pkgname is None:
                 assert item.port is not None
                 item.pkgname = await self._get_port_package_name(item.port)
 
-            if item.pkgname in seen_packages:
+            # early exit if this dependecy was already processed
+            # we just need to register it in the graph
+            if item.pkgname in tasks:
+                tasks[item.pkgname].consumers.append(item.consumer)
                 continue
-            else:
-                seen_packages.add(item.pkgname)
 
+            # either of item.pkgname or item.port may be undefined, but we need both
             manifest = None
             if item.port is None:
                 assert item.pkgname is not None
@@ -137,20 +146,44 @@ class Planner:
                 # manifest may be None if the package does not exist in the repository,
                 # in which case we'll fallback to the port building
                 if manifest is not None:
-                    tasks.append(PackageTask(item.pkgname))
                     pkgdepends = list(manifest.get('deps', {}).keys())
-                    queue.extend(_QueueItem(pkgname=pkgname) for pkgname in pkgdepends)
+                    task_item = _TaskItem(
+                        PackageTask(item.pkgname),
+                        [item.consumer]
+                    )
+                    tasks[item.pkgname] = task_item
+                    queue.extend(_QueueItem(pkgname=pkgname, consumer=task_item) for pkgname in pkgdepends)
                     self._logger.debug(f'planned {item.pkgname} as package, enqueued {len(pkgdepends)} depend(s): {" ".join(map(str, pkgdepends))}')
                     continue
 
                 self._logger.debug(f'no package {item.pkgname} available, falling back to building from port')
 
-            tasks.append(PortTask(item.port, do_test=want_testing))
             portdepends = await self._get_port_depends(item.port, want_test_depends=want_testing)
-            queue.extend(_QueueItem(port=port) for port in portdepends)
+            task_item = _TaskItem(
+                PortTask(item.port, do_test=want_testing),
+                [item.consumer]
+            )
+            tasks[item.pkgname] = task_item
+            queue.extend(_QueueItem(port=port, consumer=task_item) for port in portdepends)
             self._logger.debug(f'planned {item.port} as port, enqueued {len(portdepends)} depend(s): {" ".join(map(str, portdepends))}')
 
+        # topological sort
+        topological_sorted = []
+
+        def toposort(task: _TaskItem, stack: list[_TaskItem]):
+            task.visited = True
+
+            for consumer in task.consumers:
+                if consumer is not None and not consumer.visited:
+                    toposort(consumer, stack)
+
+            stack.append(task)
+
+        for task in tasks.values():
+            if not task.visited:
+                toposort(task, topological_sorted)
+
         plan = Plan()
-        for task in reversed(tasks):
-            plan.add_task(task)
+        for task in reversed(topological_sorted):
+            plan.add_task(task.task)
         return plan
