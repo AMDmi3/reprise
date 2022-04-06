@@ -122,7 +122,7 @@ class Planner:
                 manifest = await self._get_package_manifest(item.pkgname)
                 if manifest is None:
                     raise RuntimeError('unexpected package repository inconsistency: no manifest for {item.pkgname}')
-                item.port = Port(manifest['origin'], manifest['annotations'].get('flavor'))
+                item.port = Port(manifest['origin'], manifest.get('annotations', {}).get('flavor'))
 
             want_testing = item.port.origin in origins_to_test
             prefer_package = not want_testing and item.port.origin not in origins_to_rebuild
