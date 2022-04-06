@@ -148,7 +148,9 @@ class PortTester:
                 await jail.destroy()
                 jail = await start_jail(instance_zfs.get_path(), networking=False, hostname='porttester_nonet')
 
-                await plan.run(jail)
+                await plan.install(jail)
+
+                await plan.test(jail)
             finally:
                 await self._cleanup_jail(instance_zfs.get_path())
 

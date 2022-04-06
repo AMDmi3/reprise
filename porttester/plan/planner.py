@@ -43,6 +43,12 @@ class _QueueItem:
     consumer: _TaskItem | None = None
 
 
+@dataclass
+class _PortDepends:
+    depends: set[Port]
+    test_depends: set[Port]
+
+
 class Planner:
     _logger = logging.getLogger('Planner')
 
@@ -51,29 +57,26 @@ class Planner:
     def __init__(self, jail: Jail) -> None:
         self._jail = jail
 
-    async def _get_port_depends(self, port: Port, want_test_depends: bool = False) -> set[Port]:
+    async def _get_port_depends(self, port: Port) -> _PortDepends:
         flavor_args = ('env', 'FLAVOR=' + port.flavor) if port.flavor is not None else ()
 
-        depends_lines = await self._jail.execute(
+        lines = await self._jail.execute(
             *flavor_args,
             'make', '-C', str(Path('/usr/ports') / port.origin),
             '-V', 'BUILD_DEPENDS',
             '-V', 'RUN_DEPENDS',
             '-V', 'LIB_DEPENDS',
-            *(('-V', 'TEST_DEPENDS') if want_test_depends else ())
+            '-V', 'TEST_DEPENDS'
         )
 
-        depends = set()
+        def depend2port(depend: str) -> Port:
+            origin, *flavor = depend.split(':')[1].split('@', 1)
+            return Port(origin, flavor[0] if flavor else None)
 
-        for item in ' '.join(depends_lines).split():
-            depend = item.split(':')[1]
-
-            if '@' in depend:
-                depends.add(Port(*depend.split('@', 1)))
-            else:
-                depends.add(Port(depend, None))
-
-        return depends
+        return _PortDepends(
+            set(map(depend2port, ' '.join(lines[0:3]).split())),
+            set(map(depend2port, lines[3].split())),
+        )
 
     async def _get_port_package_name(self, port: Port) -> str:
         flavor_args = ('env', 'FLAVOR=' + port.flavor) if port.flavor is not None else ()
@@ -158,14 +161,20 @@ class Planner:
 
                 self._logger.debug(f'no package {item.pkgname} available, falling back to building from port')
 
-            portdepends = await self._get_port_depends(item.port, want_test_depends=want_testing)
+            portdepends = await self._get_port_depends(item.port)
             task_item = _TaskItem(
                 PortTask(item.port, do_test=want_testing),
                 [item.consumer]
             )
             tasks[item.pkgname] = task_item
-            queue.extend(_QueueItem(port=port, consumer=task_item) for port in portdepends)
-            self._logger.debug(f'planned {item.port} as port, enqueued {len(portdepends)} depend(s): {" ".join(map(str, portdepends))}')
+            queue.extend(_QueueItem(port=port, consumer=task_item) for port in portdepends.depends)
+            if want_testing:
+                # test depends do not intoduce edges for topological sorting
+                # in order not to create dependency loops
+                queue.extend(_QueueItem(port=port, consumer=None) for port in portdepends.test_depends)
+                self._logger.debug(f'planned {item.port} as port, enqueued {len(portdepends.depends)} normal depend(s): {" ".join(map(str, portdepends.depends))} and {len(portdepends.test_depends)} test depend(s): {" ".join(map(str, portdepends.test_depends))}')
+            else:
+                self._logger.debug(f'planned {item.port} as port, enqueued {len(portdepends.depends)} depend(s): {" ".join(map(str, portdepends.depends))}')
 
         # topological sort
         topological_sorted = []

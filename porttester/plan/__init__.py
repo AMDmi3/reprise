@@ -41,22 +41,27 @@ class Plan:
             async with sem:
                 await task.fetch(jail)
 
-        await asyncio.gather(
-            *map(wrapper, self._tasks)
-        )
+        await asyncio.gather(*map(wrapper, self._tasks))
 
         self._logger.debug('fetch finished')
 
-    async def run(self, jail: Jail, jobs: int = 1) -> None:
-        self._logger.debug('main run started')
+    async def install(self, jail: Jail) -> None:
+        self._logger.debug('install started')
+
+        # no parallelization(
+        for task in self._tasks:
+            await task.install(jail)
+
+        self._logger.debug('install finished')
+
+    async def test(self, jail: Jail, jobs: int = 1) -> None:
+        self._logger.debug('test started')
         sem = asyncio.Semaphore(jobs)
 
         async def wrapper(task: Task) -> None:
             async with sem:
-                await task.run(jail)
+                await task.test(jail)
 
-        await asyncio.gather(
-            *map(wrapper, self._tasks)
-        )
+        await asyncio.gather(*map(wrapper, self._tasks))
 
-        self._logger.debug('main run finished')
+        self._logger.debug('test run finished')
