@@ -40,6 +40,9 @@ class PackageTask(Task):
     def __init__(self, pkgname: str) -> None:
         self._pkgname = pkgname
 
+    def __repr__(self) -> str:
+        return f'PackageTask({self._pkgname})'
+
     async def fetch(self, jail: Jail) -> None:
         self._logger.debug(f'started fetching for {self._pkgname}')
         await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'fetch', '-U', '-q', '-y', self._pkgname)
@@ -58,6 +61,9 @@ class PortTask(Task):
     def __init__(self, port: Port, do_test: bool = False) -> None:
         self._port = port
         self._do_test = do_test
+
+    def __repr__(self) -> str:
+        return f'PortTask({self._port}, test={self._do_test})'
 
     def _flavorenv(self) -> tuple[str] | tuple[()]:
         return ('FLAVOR=' + self._port.flavor,) if self._port.flavor is not None else ()
