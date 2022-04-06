@@ -177,33 +177,73 @@ class PortTester:
                     'env', 'PKG_CACHEDIR=/packages', 'pkg', 'fetch', '-U', '-q', '-y', *depends
                 )
 
-
-    async def _build_ports(self, jail: Jail, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
-        all_ports = unicalize(ports_to_rebuild + ports_to_test)
-
-        depends = await self._get_depends(jail, ports_to_test, want_test_depends=True) | await self._get_depends(jail, ports_to_rebuild, want_test_depends=False)
-
-        if depends:
+    async def _build_ports(self, jail: Jail, ports_to_test: list[str], ports_to_rebuild: list[str]) -> None:
+        # install all depends for ports to test
+        if depends := await self._get_depends(jail, ports_to_test, want_test_depends=True):
             logging.debug(f'installing {len(depends)} dependencies from packages')
 
             await jail.execute(
                 'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', *depends
             )
 
-        for port in all_ports:
-            want_test = port in ports_to_test
+        ports_to_install_depends_for = set(ports_to_rebuild)
 
-            installed_packages = await self._get_installed_packages_for_port(jail, port)
+        # install all depends for ports to rebuild, only if they are present
+        # taking into account that new ports may become present at each iteration
+        while True:
+            installed_depends_for = None
+            for port in ports_to_install_depends_for:
+                for package in await self._get_installed_packages_for_port(jail, port):
+                    if depends := await self._get_depends(jail, [package.origin], want_test_depends=False):
+                        logging.debug(f'installing {len(depends)} depends for {package}')
 
-            if not installed_packages and not want_test:
-                logging.debug(f'skipping {port}: not for testing and not installed')
-                continue
+                        await jail.execute(
+                            'env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', *depends
+                        )
 
-            for package in installed_packages:
+                        installed_depends_for = port
+
+                if installed_depends_for is not None:
+                    break
+
+            if installed_depends_for is None:
+                break
+            else:
+                ports_to_install_depends_for.remove(installed_depends_for)
+
+        # rebuild all ports to rebuild
+        for port in ports_to_rebuild:
+            for package in await self._get_installed_packages_for_port(jail, port):
                 logging.debug(f'removing {package} for rebuild')
 
                 await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', package.pkgname)
 
+                logging.debug(f'rebuilding {package}')
+
+                flavorenv = ('FLAVOR=' + package.flavor,) if package.flavor is not None else ()
+
+                returncode = await jail.execute_by_line(
+                    'env',
+                    'BATCH=1',
+                    'DISTDIR=/distfiles',
+                    'WRKDIRPREFIX=/work',
+                    'PKG_ADD=false',
+                    'USE_PACKAGE_DEPENDS_ONLY=1',
+                    *flavorenv,
+                    'make', '-C', f'/usr/ports/{package.origin}', 'install'
+                )
+
+        # (re)build and test all ports to test
+        for port in ports_to_test:
+            packages = await self._get_installed_packages_for_port(jail, port)
+
+            for package in packages:
+                await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'delete', '-q', '-y', '-f', package.pkgname)
+
+            if not packages:
+                packages = [InstalledPackage(port, '???', None)]
+
+            for package in packages:
                 logging.debug(f'building {package}')
 
                 flavorenv = ('FLAVOR=' + package.flavor,) if package.flavor is not None else ()
@@ -216,14 +256,12 @@ class PortTester:
                     'PKG_ADD=false',
                     'USE_PACKAGE_DEPENDS_ONLY=1',
                     *flavorenv,
-                    'make', '-C', f'/usr/ports/{port}', 'install'
+                    'make', '-C', f'/usr/ports/{package.origin}', 'install'
                 )
 
                 if returncode != 0:
-                    print('failed')
-                    return False
+                    raise RuntimeError('test failed')
 
-            if port in ports_to_test:
                 logging.debug(f'running make test for {port}')
 
                 returncode = await jail.execute_by_line(
@@ -233,12 +271,12 @@ class PortTester:
                     'WRKDIRPREFIX=/work',
                     'PKG_ADD=false',
                     'USE_PACKAGE_DEPENDS_ONLY=1',
-                    'make', '-C', f'/usr/ports/{port}', 'test',
+                    *flavorenv,
+                    'make', '-C', f'/usr/ports/{package.origin}', 'test',
                 )
 
                 if returncode != 0:
-                    print('failure')
-                    return False
+                    raise RuntimeError('test failed')
 
     async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
         for jail_name in _USE_JAILS:
@@ -349,9 +387,9 @@ async def main() -> None:
         distfilesdir=args.distfiles
     )
 
-    res = await porttester.run(args.ports, args.rebuild)
+    await porttester.run(args.ports, args.rebuild)
 
-    sys.exit(0 if res else 1)
+    sys.exit(0)
 
 
 asyncio.run(main())
