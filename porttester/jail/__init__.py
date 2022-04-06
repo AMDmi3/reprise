@@ -24,6 +24,8 @@ from porttester.commands import JAIL_CMD, JEXEC_CMD, JLS_CMD
 from porttester.execute import execute
 from porttester.resources import Resource
 
+_logger = logging.getLogger('Jail')
+
 
 class Jail(Resource):
     _jid: int
@@ -51,6 +53,7 @@ class Jail(Resource):
         return proc.returncode
 
     async def destroy(self) -> None:
+        _logger.debug(f'destroying jail {self._jid}')
         await execute(JAIL_CMD, '-r', str(self._jid))
         while await self.is_running():
             logging.debug('waiting for jail to die')
@@ -88,4 +91,5 @@ async def start_jail(path: Path, networking: bool = False, hostname: str = '') -
         f'host.hostname={hostname}'
     )
     jid = int(res[0])
+    _logger.debug(f'started jail {jid}')
     return Jail(jid, path)
