@@ -16,9 +16,14 @@
 # along with portester.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import logging
+
+
+_logger = logging.getLogger('Execute')
 
 
 async def execute(program: str, *args: str, allow_failure: bool = False) -> list[str]:
+    _logger.debug('executing ' + ' '.join([program] + list(args)))
     proc = await asyncio.create_subprocess_exec(
         program, *args,
         stdout=asyncio.subprocess.PIPE,
