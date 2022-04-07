@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from porttester.jail import start_jail
+from porttester.jail import NetworkingMode, start_jail
 
 
 @pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='jail tests only supported on FreeBSD')
@@ -38,7 +38,7 @@ async def test_jail():
 @pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='jail tests only supported on FreeBSD')
 @pytest.mark.skipif(os.getuid() != 0, reason='jail tests must be run as root')
 async def test_nonetwork():
-    jail = await start_jail(Path('/'), hostname='portester_test_jail_nonetwork', networking=False)
+    jail = await start_jail(Path('/'), hostname='portester_test_jail_nonetwork', networking=NetworkingMode.DISABLED)
 
     # expected to die with "Non-recoverable resolver failure"
     with pytest.raises(RuntimeError):

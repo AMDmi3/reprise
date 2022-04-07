@@ -17,6 +17,7 @@
 
 import asyncio
 import logging
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -77,8 +78,21 @@ class Jail(Resource):
         return f'jail {self._jid}'
 
 
-async def start_jail(path: Path, networking: bool = False, hostname: str = '') -> Jail:
-    networking_arg = 'inherit' if networking else 'disable'
+class NetworkingMode(Enum):
+    DISABLED = 1
+    RESTRICTED = 2
+    UNRESTRICTED = 3
+
+
+async def start_jail(path: Path, networking: NetworkingMode = NetworkingMode.DISABLED, hostname: str = '') -> Jail:
+    # XXX: poudriere checks kern.features.inet and kern.features.inet6
+    # to see if these are available at all, we should probably do the same
+    if networking == NetworkingMode.UNRESTRICTED:
+        networking_args = ('ip4=inherit', 'ip6=inherit')
+    elif networking == NetworkingMode.RESTRICTED:
+        networking_args = ('ip4.addr=127.0.0.1', 'ip6.addr=::1')
+    else:
+        networking_args = ('ip4=disable', 'ip6=disable')
 
     res = await execute(
         JAIL_CMD,
@@ -86,9 +100,8 @@ async def start_jail(path: Path, networking: bool = False, hostname: str = '') -
         '-i',
         'persist',
         f'path={path}',
-        f'ip4={networking_arg}',
-        f'ip6={networking_arg}',
-        f'host.hostname={hostname}'
+        f'host.hostname={hostname}',
+        *networking_args,
     )
     jid = int(res[0])
     _logger.debug(f'started jail {jid}')

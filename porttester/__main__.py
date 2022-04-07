@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 from porttester.execute import execute
-from porttester.jail import start_jail
+from porttester.jail import NetworkingMode, start_jail
 from porttester.jail.populate import JailSpec, populate_jail
 from porttester.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
 from porttester.plan.planner import Planner
@@ -135,7 +135,7 @@ class PortTester:
                 )
 
                 logging.debug('starting jail')
-                jail = await start_jail(instance_zfs.get_path(), networking=True, hostname='portester')
+                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.UNRESTRICTED, hostname='portester')
 
                 logging.debug('bootstrapping pkg')
 
@@ -150,7 +150,7 @@ class PortTester:
                 logging.debug('restarting the jail with disabled network')
 
                 await jail.destroy()
-                jail = await start_jail(instance_zfs.get_path(), networking=False, hostname='porttester_nonet')
+                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='porttester_nonet')
 
                 await plan.install(jail)
 
