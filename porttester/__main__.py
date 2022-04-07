@@ -118,6 +118,10 @@ class PortTester:
                 with open(instance_zfs.get_path() / 'etc' / 'resolv.conf', 'w') as fd:
                     fd.write('nameserver 8.8.8.8\n')
 
+                logging.debug('installing make.conf')
+                with open(instance_zfs.get_path() / 'etc' / 'make.conf', 'w') as fd:
+                    fd.write('BUILD_ALL_PYTHON_FLAVORS=yes\n')
+
                 logging.debug('fixing pkg config')
                 replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
 

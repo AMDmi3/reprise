@@ -102,7 +102,6 @@ class PortTask(Task):
             'WRKDIRPREFIX=/work',
             'PKG_ADD=false',
             'USE_PACKAGE_DEPENDS_ONLY=1',
-            'NO_IGNORE=1',
             *self._flavorenv(),
             'make', '-C', f'/usr/ports/{self._port.origin}', 'install'  # XXX: clean if not do_test?
         )
