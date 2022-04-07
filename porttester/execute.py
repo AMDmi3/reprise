@@ -36,6 +36,6 @@ async def execute(program: str, *args: str, allow_failure: bool = False) -> list
         if allow_failure:
             return []
         else:
-            raise RuntimeError(stderr.decode('utf-8'))
+            raise RuntimeError(stdout.decode('utf-8') + stderr.decode('utf-8'))
 
     return stdout.decode('utf-8').split('\n')[:-1]
