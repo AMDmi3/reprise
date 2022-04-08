@@ -10,10 +10,10 @@ lint:: test flake8 mypy isort-check
 test::
 	${PYTEST} ${PYTEST_ARGS} -v -rs
 
-flake8:
+flake8::
 	${FLAKE8} ${FLAKE8_ARGS} --application-import-names=reprise reprise tests
 
-mypy:
+mypy::
 	${MYPY} reprise tests
 
 isort-check::
