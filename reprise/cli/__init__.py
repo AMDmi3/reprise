@@ -187,7 +187,7 @@ async def parse_arguments() -> argparse.Namespace:
     return args
 
 
-async def main() -> None:
+async def amain() -> None:
     logging.basicConfig(level=logging.DEBUG)
 
     args = await parse_arguments()
@@ -205,4 +205,9 @@ async def main() -> None:
     sys.exit(0)
 
 
-asyncio.run(main())
+def main() -> None:
+    asyncio.run(amain())
+
+
+if __name__ == '__main__':
+    main()
