@@ -86,79 +86,84 @@ class Worker:
             logging.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
-    async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
-        for jail_name in _USE_JAILS:
-            master_zfs = await self._get_prepared_jail(jail_name)
+    async def _run_one_jail(self, jail_name: str, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
+        master_zfs = await self._get_prepared_jail(jail_name)
 
-            instance_name = f'{jail_name}-{os.getpid()}'
+        instance_name = f'{jail_name}-{os.getpid()}'
 
-            instance_zfs = self._workdir.get_jail_instance(instance_name)
+        instance_zfs = self._workdir.get_jail_instance(instance_name)
 
-            packages_zfs = self._workdir.get_jail_packages(jail_name)
+        packages_zfs = self._workdir.get_jail_packages(jail_name)
 
-            if not await packages_zfs.exists():
-                await packages_zfs.create(parents=True)
+        if not await packages_zfs.exists():
+            await packages_zfs.create(parents=True)
 
+        await self._cleanup_jail(instance_zfs.get_path())
+
+        try:
+            logging.debug(f'cloning instance {instance_name}')
+            await instance_zfs.clone_from(master_zfs, 'clean', parents=True)
+
+            logging.debug('creating directories')
+            ports_path = instance_zfs.get_path() / 'usr' / 'ports'
+            distfiles_path = instance_zfs.get_path() / 'distfiles'
+            work_path = instance_zfs.get_path() / 'work'
+            packages_path = instance_zfs.get_path() / 'packages'
+
+            for path in [ports_path, distfiles_path, work_path, packages_path]:
+                path.mkdir(parents=True, exist_ok=True)
+
+            logging.debug('installing resolv.conf')
+            with open(instance_zfs.get_path() / 'etc' / 'resolv.conf', 'w') as fd:
+                fd.write('nameserver 8.8.8.8\n')
+
+            logging.debug('installing make.conf')
+            with open(instance_zfs.get_path() / 'etc' / 'make.conf', 'w') as fd:
+                fd.write('BUILD_ALL_PYTHON_FLAVORS=yes\n')
+
+            logging.debug('fixing pkg config')
+            replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
+
+            logging.debug('mounting filesystems')
+            await asyncio.gather(
+                mount_devfs(instance_zfs.get_path() / 'dev'),
+                mount_nullfs(self._portsdir, ports_path),
+                mount_nullfs(self._distfilesdir, distfiles_path, readonly=False),
+                mount_nullfs(packages_zfs.get_path(), packages_path, readonly=False),
+                mount_tmpfs(work_path),
+            )
+
+            logging.debug('starting jail')
+            jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.UNRESTRICTED, hostname='reprise')
+
+            logging.debug('bootstrapping pkg')
+
+            await jail.execute('pkg', 'bootstrap', '-q', '-y')
+
+            await jail.execute('pkg', 'update', '-q')
+
+            plan = await Planner(jail).prepare(ports_to_test, ports_to_rebuild)
+
+            await plan.fetch(jail)
+
+            logging.debug('restarting the jail with disabled network')
+
+            await jail.destroy()
+            jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='reprise_nonet')
+
+            await plan.install(jail)
+
+            await plan.test(jail)
+        finally:
             await self._cleanup_jail(instance_zfs.get_path())
 
-            try:
-                logging.debug(f'cloning instance {instance_name}')
-                await instance_zfs.clone_from(master_zfs, 'clean', parents=True)
-
-                logging.debug('creating directories')
-                ports_path = instance_zfs.get_path() / 'usr' / 'ports'
-                distfiles_path = instance_zfs.get_path() / 'distfiles'
-                work_path = instance_zfs.get_path() / 'work'
-                packages_path = instance_zfs.get_path() / 'packages'
-
-                for path in [ports_path, distfiles_path, work_path, packages_path]:
-                    path.mkdir(parents=True, exist_ok=True)
-
-                logging.debug('installing resolv.conf')
-                with open(instance_zfs.get_path() / 'etc' / 'resolv.conf', 'w') as fd:
-                    fd.write('nameserver 8.8.8.8\n')
-
-                logging.debug('installing make.conf')
-                with open(instance_zfs.get_path() / 'etc' / 'make.conf', 'w') as fd:
-                    fd.write('BUILD_ALL_PYTHON_FLAVORS=yes\n')
-
-                logging.debug('fixing pkg config')
-                replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
-
-                logging.debug('mounting filesystems')
-                await asyncio.gather(
-                    mount_devfs(instance_zfs.get_path() / 'dev'),
-                    mount_nullfs(self._portsdir, ports_path),
-                    mount_nullfs(self._distfilesdir, distfiles_path, readonly=False),
-                    mount_nullfs(packages_zfs.get_path(), packages_path, readonly=False),
-                    mount_tmpfs(work_path),
-                )
-
-                logging.debug('starting jail')
-                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.UNRESTRICTED, hostname='reprise')
-
-                logging.debug('bootstrapping pkg')
-
-                await jail.execute('pkg', 'bootstrap', '-q', '-y')
-
-                await jail.execute('pkg', 'update', '-q')
-
-                plan = await Planner(jail).prepare(ports_to_test, ports_to_rebuild)
-
-                await plan.fetch(jail)
-
-                logging.debug('restarting the jail with disabled network')
-
-                await jail.destroy()
-                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='reprise_nonet')
-
-                await plan.install(jail)
-
-                await plan.test(jail)
-            finally:
-                await self._cleanup_jail(instance_zfs.get_path())
-
         return True
+
+    async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
+        return all([
+            await self._run_one_jail(jail_name, ports_to_test, ports_to_rebuild)
+            for jail_name in _USE_JAILS
+        ])
 
 
 async def parse_arguments() -> argparse.Namespace:
