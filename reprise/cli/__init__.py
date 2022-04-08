@@ -17,6 +17,7 @@
 
 import argparse
 import asyncio
+import fcntl
 import logging
 import os
 import sys
@@ -64,20 +65,28 @@ class Worker:
         jail = self._workdir.get_jail_master(name)
         spec = _JAIL_SPECS[name]
 
-        if await jail.exists() and not (jail.get_path() / 'usr').exists():
-            logging.debug(f'jail {name} is incomplete, destroying')
-            await jail.destroy()
+        with open(self._workdir.root.get_path() / 'jails.lock', 'w+') as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                logging.debug('jail is being prepared by another process, need to wait')
 
-        if not await jail.exists():
-            logging.debug(f'creating jail {name}')
-            await jail.create(parents=True)
+            fcntl.flock(lock, fcntl.LOCK_EX)
 
-            logging.debug(f'populating jail {name}')
-            await populate_jail(spec, jail.get_path())
+            if await jail.exists() and not (jail.get_path() / 'usr').exists():
+                logging.debug(f'jail {name} is incomplete, destroying')
+                await jail.destroy()
 
-            await jail.snapshot('clean')
+            if not await jail.exists():
+                logging.debug(f'creating jail {name}')
+                await jail.create(parents=True)
 
-        logging.debug(f'jail {name} is ready')
+                logging.debug(f'populating jail {name}')
+                await populate_jail(spec, jail.get_path())
+
+                await jail.snapshot('clean')
+
+            logging.debug(f'jail {name} is ready')
 
         return jail
 
