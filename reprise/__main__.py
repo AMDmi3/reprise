@@ -1,19 +1,19 @@
 # Copyright (C) 2022 Dmitry Marakasov <amdmi3@amdmi3.ru>
 #
-# This file is part of portester
+# This file is part of reprise
 #
-# portester is free software: you can redistribute it and/or modify
+# reprise is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# portester is distributed in the hope that it will be useful,
+# reprise is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with portester.  If not, see <http://www.gnu.org/licenses/>.
+# along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import asyncio
@@ -22,14 +22,14 @@ import os
 import sys
 from pathlib import Path
 
-from porttester.execute import execute
-from porttester.jail import NetworkingMode, start_jail
-from porttester.jail.populate import JailSpec, populate_jail
-from porttester.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
-from porttester.plan.planner import Planner
-from porttester.resources.enumerate import enumerate_resources
-from porttester.workdir import Workdir
-from porttester.zfs import ZFS
+from reprise.execute import execute
+from reprise.jail import NetworkingMode, start_jail
+from reprise.jail.populate import JailSpec, populate_jail
+from reprise.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
+from reprise.plan.planner import Planner
+from reprise.resources.enumerate import enumerate_resources
+from reprise.workdir import Workdir
+from reprise.zfs import ZFS
 
 _JAIL_SPECS = {
     '12-i386': JailSpec(version='12.3-RELEASE', architecture='i386'),
@@ -50,7 +50,7 @@ def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
         fd.write(data)
 
 
-class PortTester:
+class Worker:
     _workdir: Workdir
     _portsdir: Path
     _distfilesdir: Path
@@ -135,7 +135,7 @@ class PortTester:
                 )
 
                 logging.debug('starting jail')
-                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.UNRESTRICTED, hostname='portester')
+                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.UNRESTRICTED, hostname='reprise')
 
                 logging.debug('bootstrapping pkg')
 
@@ -150,7 +150,7 @@ class PortTester:
                 logging.debug('restarting the jail with disabled network')
 
                 await jail.destroy()
-                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='porttester_nonet')
+                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='reprise_nonet')
 
                 await plan.install(jail)
 
@@ -194,13 +194,13 @@ async def main() -> None:
 
     workdir = await Workdir.initialize()
 
-    porttester = PortTester(
+    worker = Worker(
         workdir=workdir,
         portsdir=args.portstree,
         distfilesdir=args.distfiles
     )
 
-    await porttester.run(args.ports, args.rebuild)
+    await worker.run(args.ports, args.rebuild)
 
     sys.exit(0)
 

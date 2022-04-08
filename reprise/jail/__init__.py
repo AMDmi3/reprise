@@ -1,19 +1,19 @@
 # Copyright (C) 2022 Dmitry Marakasov <amdmi3@amdmi3.ru>
 #
-# This file is part of portester
+# This file is part of reprise
 #
-# portester is free software: you can redistribute it and/or modify
+# reprise is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# portester is distributed in the hope that it will be useful,
+# reprise is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with portester.  If not, see <http://www.gnu.org/licenses/>.
+# along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
 import logging
@@ -21,9 +21,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from porttester.commands import JAIL_CMD, JEXEC_CMD, JLS_CMD
-from porttester.execute import execute
-from porttester.resources import Resource
+from reprise.commands import JAIL_CMD, JEXEC_CMD, JLS_CMD
+from reprise.execute import execute
+from reprise.resources import Resource
 
 _logger = logging.getLogger('Jail')
 

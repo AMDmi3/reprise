@@ -1,8 +1,8 @@
-# porttester
+# reprise
 
-[![CI](https://github.com/AMDmi3/porttester/actions/workflows/ci.yml/badge.svg)](https://github.com/AMDmi3/porttester/actions/workflows/ci.yml)
+[![CI](https://github.com/AMDmi3/reprise/actions/workflows/ci.yml/badge.svg)](https://github.com/AMDmi3/reprise/actions/workflows/ci.yml)
 
-porttester is a tool primarily designed to test package production
+reprise is a tool primarily designed to test package production
 on FreeBSD.
 
 Its goals are to use modern facilities present in FreeBSD (such as
@@ -12,7 +12,7 @@ Unlike [poudriere](https://github.com/freebsd/poudriere), it's
 focused on port testing only, without support for repository
 production, and has important features still lacking in poudriere,
 such as `make test` support, and more eager use of prebuilt packages.
-As a result, with porttester you test your ports, not rebuild llvm
+As a result, with reprise you test your ports, not rebuild llvm
 and other heavy dependencies over and over again.
 
 The tool is currently in the proof-of-concept state and is not

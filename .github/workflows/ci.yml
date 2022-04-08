@@ -35,7 +35,7 @@ jobs:
         # superuser is required for ZFS operations
         run: sudo -E env "PATH=$PATH" make test
         env:
-          PYTEST_ARGS: --cov-report=xml --cov=porttester
-          PORTTESTER_TEST_ZFS_POOL: tank
+          PYTEST_ARGS: --cov-report=xml --cov=reprise
+          REPRISE_TEST_ZFS_POOL: tank
       - name: Push coverage info
         run: codecov
