@@ -53,12 +53,12 @@ def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
 class Worker:
     _workdir: Workdir
     _portsdir: Path
-    _distfilesdir: Path
+    _distdir: Path
 
-    def __init__(self, workdir: Workdir, portsdir: Path, distfilesdir: Path) -> None:
+    def __init__(self, workdir: Workdir, portsdir: Path, distdir: Path) -> None:
         self._workdir = workdir
         self._portsdir = portsdir
-        self._distfilesdir = distfilesdir
+        self._distdir = distdir
 
     async def _get_prepared_jail(self, name: str) -> ZFS:
         jail = self._workdir.get_jail_master(name)
@@ -128,7 +128,7 @@ class Worker:
             await asyncio.gather(
                 mount_devfs(instance_zfs.get_path() / 'dev'),
                 mount_nullfs(self._portsdir, ports_path),
-                mount_nullfs(self._distfilesdir, distfiles_path, readonly=False),
+                mount_nullfs(self._distdir, distfiles_path, readonly=False),
                 mount_nullfs(packages_zfs.get_path(), packages_path, readonly=False),
                 mount_tmpfs(work_path),
             )
@@ -166,28 +166,62 @@ class Worker:
         ])
 
 
-async def parse_arguments() -> argparse.Namespace:
-    AUTODETECT = 'autodect'
+_FALLBACK_PORTSDIR = '/usr/ports'
 
+
+async def discover_environment(args: argparse.Namespace) -> None:
+    logger = logging.getLogger('Discover')
+
+    if args.portsdir and args.distdir and args.ports:
+        return
+
+    logger.debug('some required args were not specified, need to discover')
+
+    if not args.portsdir and os.path.exists('Makefile'):
+        lines = await execute('make', '-V', 'PORTSDIR', '-V', 'PORTNAME', allow_failure=True)
+        if len(lines) == 2 and all(lines):
+            logger.debug('we seem to be in a port directory, using it')
+
+            args.portsdir = lines[0]
+            logger.debug(f'discovered PORTSDIR: {args.portsdir}')
+
+            if not args.ports:
+                origin = '/'.join(os.getcwd().rsplit('/', 2)[-2:])
+                logger.debug(f'assumed port to build: {origin}')
+                args.ports = [origin]
+
+    if not args.portsdir:
+        args.portsdir = _FALLBACK_PORTSDIR
+        logger.debug(f'assumed PORTSDIR: {args.portsdir}')
+
+    if not args.distdir:
+        lines = await execute('make', '-C', args.portsdir, '-V', 'DISTDIR', allow_failure=True)
+        if lines and lines[0]:
+            args.distdir = lines[0]
+            logger.debug(f'discovered DISTDIR: {args.distdir}')
+
+    assert(args.portsdir)
+
+    if not args.distdir:
+        print('FATAL: no distdir specified', file=sys.stderr)
+        sys.exit(1)
+
+    if not args.ports:
+        print('FATAL: no ports specified to build', file=sys.stderr)
+        sys.exit(1)
+
+
+async def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--portstree', default='/usr/ports', metavar='PATH', help='ports tree directory to use in jails')
-    parser.add_argument('--distfiles', default=AUTODETECT, metavar='PATH', help='distfiles directory tree to use in jails')
+    parser.add_argument('--portsdir', metavar='PATH', type=str, help='ports tree directory to use in jails')
+    parser.add_argument('--distdir', metavar='PATH', type=str, help='distfiles directory tree to use in jails')
 
     parser.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', help='port origin(s) to rebuild from ports')
-    parser.add_argument('ports', metavar='PORT', nargs='+', help='port origin(s) to test')
+    parser.add_argument('ports', metavar='PORT', nargs='*', help='port origin(s) to test')
 
     args = parser.parse_args()
 
-    if args.distfiles == AUTODETECT:
-        distdir = await execute('make', '-C', args.portstree, '-V', 'DISTDIR')
-
-        if distdir and distdir[0] and os.path.exists(distdir[0]):
-            args.distfiles = distdir[0]
-        else:
-            raise RuntimeError('cannot autodetect distfiles location')
-
-    if args.rebuild is None:
-        args.rebuild = []
+    await discover_environment(args)
 
     return args
 
@@ -201,8 +235,8 @@ async def amain() -> None:
 
     worker = Worker(
         workdir=workdir,
-        portsdir=args.portstree,
-        distfilesdir=args.distfiles
+        portsdir=args.portsdir,
+        distdir=args.distdir
     )
 
     await worker.run(args.ports, args.rebuild)
