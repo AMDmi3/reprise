@@ -41,5 +41,6 @@ jobs:
         env:
           PYTEST_ARGS: --cov-report=xml --cov=reprise
           REPRISE_TEST_ZFS_POOL: tank
+          IM_OK_WITH_LEFTOVERS: yes
       - name: Push coverage info
         run: codecov

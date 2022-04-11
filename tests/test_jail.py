@@ -26,6 +26,7 @@ from reprise.jail import NetworkingMode, start_jail
 
 @pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='jail tests only supported on FreeBSD')
 @pytest.mark.skipif(os.getuid() != 0, reason='jail tests must be run as root')
+@pytest.mark.skipif(not 'IM_OK_WITH_LEFTOVERS' in os.environ, reason='please set IM_OK_WITH_LEFTOVERS env var if you acknowledge that these tests may produce leftover jails')
 async def test_jail():
     jail = await start_jail(Path('/'), hostname='reprise_test_jail')
     assert await jail.is_running()
@@ -37,6 +38,7 @@ async def test_jail():
 
 @pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='jail tests only supported on FreeBSD')
 @pytest.mark.skipif(os.getuid() != 0, reason='jail tests must be run as root')
+@pytest.mark.skipif(not 'IM_OK_WITH_LEFTOVERS' in os.environ, reason='please set IM_OK_WITH_LEFTOVERS env var if you acknowledge that these tests may produce leftover jails')
 async def test_nonetwork():
     jail = await start_jail(Path('/'), hostname='reprise_test_jail_nonetwork', networking=NetworkingMode.DISABLED)
 
