@@ -52,7 +52,6 @@ Most of these will hopefully be solved at some point.
 - No support for options.
 - No support for ccache.
 - No support for build as user.
-- No support for queuing batch builds.
 - Unreadable logs.
 
 ## Requirements
@@ -79,9 +78,6 @@ You may specify `--portsdir` and a list of ports explicitly:
 ```shell
 # reprise --portsdir /usr/ports cat1/port1 cat2/port2
 ```
-
-Note that this way multiple ports are built in the same environment,
-which may have unwanted consequences.
 
 Additionally, you may specify a list of dependencies which need to
 be rebuilt from ports. These will only be built if actually needed

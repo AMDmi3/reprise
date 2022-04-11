@@ -20,6 +20,7 @@ import asyncio
 import logging
 import os
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from reprise.execute import execute
@@ -51,15 +52,20 @@ def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
         fd.write(data)
 
 
+@dataclass
+class JobSpec:
+    origin: str
+    portsdir: Path
+    distdir: Path
+    jailname: str
+    origins_to_rebuild: set[str] = field(default_factory=set)
+
+
 class Worker:
     _workdir: Workdir
-    _portsdir: Path
-    _distdir: Path
 
-    def __init__(self, workdir: Workdir, portsdir: Path, distdir: Path) -> None:
+    def __init__(self, workdir: Workdir) -> None:
         self._workdir = workdir
-        self._portsdir = portsdir
-        self._distdir = distdir
 
     async def _get_prepared_jail(self, name: str) -> ZFS:
         jail = self._workdir.get_jail_master(name)
@@ -87,15 +93,15 @@ class Worker:
             logging.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
-    async def _run_one_jail(self, jail_name: str, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
+    async def run(self, jobspec: JobSpec) -> bool:
         with file_lock(self._workdir.root.get_path() / 'jails.lock'):
-            master_zfs = await self._get_prepared_jail(jail_name)
-            packages_zfs = self._workdir.get_jail_packages(jail_name)
+            master_zfs = await self._get_prepared_jail(jobspec.jailname)
+            packages_zfs = self._workdir.get_jail_packages(jobspec.jailname)
 
             if not await packages_zfs.exists():
                 await packages_zfs.create(parents=True)
 
-        instance_name = f'{jail_name}-{os.getpid()}'
+        instance_name = f'{jobspec.jailname}-{os.getpid()}'
 
         instance_zfs = self._workdir.get_jail_instance(instance_name)
 
@@ -128,8 +134,8 @@ class Worker:
             logging.debug('mounting filesystems')
             await asyncio.gather(
                 mount_devfs(instance_zfs.get_path() / 'dev'),
-                mount_nullfs(self._portsdir, ports_path),
-                mount_nullfs(self._distdir, distfiles_path, readonly=False),
+                mount_nullfs(jobspec.portsdir, ports_path),
+                mount_nullfs(jobspec.distdir, distfiles_path, readonly=False),
                 mount_nullfs(packages_zfs.get_path(), packages_path, readonly=False),
                 mount_tmpfs(work_path),
             )
@@ -143,7 +149,7 @@ class Worker:
 
             await jail.execute('pkg', 'update', '-q')
 
-            plan = await Planner(jail).prepare(ports_to_test, ports_to_rebuild)
+            plan = await Planner(jail).prepare([jobspec.origin], list(jobspec.origins_to_rebuild))
 
             with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
                 await plan.fetch(jail)
@@ -160,12 +166,6 @@ class Worker:
             await self._cleanup_jail(instance_zfs.get_path())
 
         return True
-
-    async def run(self, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
-        return all([
-            await self._run_one_jail(jail_name, ports_to_test, ports_to_rebuild)
-            for jail_name in _USE_JAILS
-        ])
 
 
 _FALLBACK_PORTSDIR = '/usr/ports'
@@ -240,13 +240,24 @@ async def amain() -> None:
 
     worker = Worker(
         workdir=workdir,
-        portsdir=args.portsdir,
-        distdir=args.distdir
     )
 
-    await worker.run(args.ports, args.rebuild)
+    jobspecs = [
+        JobSpec(
+            origin=port,
+            portsdir=args.portsdir,
+            distdir=args.distdir,
+            jailname=jailname,
+        )
+        for port in set(args.ports)
+        for jailname in _USE_JAILS
+    ]
 
-    sys.exit(0)
+    success = True
+    for jobspec in jobspecs:
+        success = success and await worker.run(jobspec)
+
+    sys.exit(0 if success else 1)
 
 
 def main() -> None:
