@@ -17,7 +17,6 @@
 
 import argparse
 import asyncio
-import fcntl
 import logging
 import os
 import sys
@@ -26,6 +25,7 @@ from pathlib import Path
 from reprise.execute import execute
 from reprise.jail import NetworkingMode, start_jail
 from reprise.jail.populate import JailSpec, populate_jail
+from reprise.lock import file_lock
 from reprise.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
 from reprise.plan.planner import Planner
 from reprise.resources.enumerate import enumerate_resources
@@ -65,28 +65,20 @@ class Worker:
         jail = self._workdir.get_jail_master(name)
         spec = _JAIL_SPECS[name]
 
-        with open(self._workdir.root.get_path() / 'jails.lock', 'w+') as lock:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                logging.debug('jail is being prepared by another process, need to wait')
+        if await jail.exists() and not (jail.get_path() / 'usr').exists():
+            logging.debug(f'jail {name} is incomplete, destroying')
+            await jail.destroy()
 
-            fcntl.flock(lock, fcntl.LOCK_EX)
+        if not await jail.exists():
+            logging.debug(f'creating jail {name}')
+            await jail.create(parents=True)
 
-            if await jail.exists() and not (jail.get_path() / 'usr').exists():
-                logging.debug(f'jail {name} is incomplete, destroying')
-                await jail.destroy()
+            logging.debug(f'populating jail {name}')
+            await populate_jail(spec, jail.get_path())
 
-            if not await jail.exists():
-                logging.debug(f'creating jail {name}')
-                await jail.create(parents=True)
+            await jail.snapshot('clean')
 
-                logging.debug(f'populating jail {name}')
-                await populate_jail(spec, jail.get_path())
-
-                await jail.snapshot('clean')
-
-            logging.debug(f'jail {name} is ready')
+        logging.debug(f'jail {name} is ready')
 
         return jail
 
@@ -96,16 +88,16 @@ class Worker:
             await resource.destroy()
 
     async def _run_one_jail(self, jail_name: str, ports_to_test: list[str], ports_to_rebuild: list[str]) -> bool:
-        master_zfs = await self._get_prepared_jail(jail_name)
+        with file_lock(self._workdir.root.get_path() / 'jails.lock'):
+            master_zfs = await self._get_prepared_jail(jail_name)
+            packages_zfs = self._workdir.get_jail_packages(jail_name)
+
+            if not await packages_zfs.exists():
+                await packages_zfs.create(parents=True)
 
         instance_name = f'{jail_name}-{os.getpid()}'
 
         instance_zfs = self._workdir.get_jail_instance(instance_name)
-
-        packages_zfs = self._workdir.get_jail_packages(jail_name)
-
-        if not await packages_zfs.exists():
-            await packages_zfs.create(parents=True)
 
         await self._cleanup_jail(instance_zfs.get_path())
 
@@ -153,7 +145,8 @@ class Worker:
 
             plan = await Planner(jail).prepare(ports_to_test, ports_to_rebuild)
 
-            await plan.fetch(jail)
+            with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
+                await plan.fetch(jail)
 
             logging.debug('restarting the jail with disabled network')
 
