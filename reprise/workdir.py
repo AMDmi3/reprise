@@ -56,7 +56,17 @@ class Workdir:
         except RuntimeError as e:
             raise AutocreateFailure('cannot get root dataset mountpoint') from e
 
-        return Workdir(root)
+        workdir = Workdir(root)
+
+        required_filesystems = [
+            workdir.get_logs()
+        ]
+
+        for filesystem in required_filesystems:
+            if not await filesystem.exists():
+                await filesystem.create()
+
+        return workdir
 
     def __init__(self, root: ZFS) -> None:
         self.root = root
@@ -69,3 +79,6 @@ class Workdir:
 
     def get_jail_packages(self, name: str) -> ZFS:
         return self.root.get_child(Path('packages') / name)
+
+    def get_logs(self) -> ZFS:
+        return self.root.get_child(Path('logs'))

@@ -17,6 +17,7 @@
 
 import asyncio
 import logging
+from typing import TextIO
 
 from reprise.jail import Jail
 from reprise.plan.tasks import Task
@@ -33,34 +34,34 @@ class Plan:
     def add_task(self, task: Task) -> None:
         self._tasks.append(task)
 
-    async def fetch(self, jail: Jail, jobs: int = 1) -> None:
+    async def fetch(self, jail: Jail, log: TextIO, jobs: int = 1) -> None:
         self._logger.debug('fetch started')
         sem = asyncio.Semaphore(jobs)
 
         async def wrapper(task: Task) -> None:
             async with sem:
-                await task.fetch(jail)
+                await task.fetch(jail, log)
 
         await asyncio.gather(*map(wrapper, self._tasks))
 
         self._logger.debug('fetch finished')
 
-    async def install(self, jail: Jail) -> None:
+    async def install(self, jail: Jail, log: TextIO) -> None:
         self._logger.debug('install started')
 
         # no parallelization(
         for task in self._tasks:
-            await task.install(jail)
+            await task.install(jail, log)
 
         self._logger.debug('install finished')
 
-    async def test(self, jail: Jail, jobs: int = 1) -> None:
+    async def test(self, jail: Jail, log: TextIO, jobs: int = 1) -> None:
         self._logger.debug('test started')
         sem = asyncio.Semaphore(jobs)
 
         async def wrapper(task: Task) -> None:
             async with sem:
-                await task.test(jail)
+                await task.test(jail, log)
 
         await asyncio.gather(*map(wrapper, self._tasks))
 

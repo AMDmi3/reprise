@@ -19,7 +19,7 @@ import asyncio
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from reprise.commands import JAIL_CMD, JEXEC_CMD, JLS_CMD
 from reprise.execute import execute
@@ -39,13 +39,13 @@ class Jail(Resource):
     async def execute(self, program: str, *args: Any, **kwargs: Any) -> list[str]:
         return await execute(JEXEC_CMD, '-l', str(self._jid), program, *args, **kwargs)
 
-    async def execute_by_line(self, program: str, *args: Any, **kwargs: Any) -> int:
+    async def execute_by_line(self, program: str, *args: Any, log: TextIO | None) -> int:
         proc = await asyncio.create_subprocess_exec(
             JEXEC_CMD, '-l', str(self._jid),
-            program, *args, **kwargs,
+            program, *args,
             stdin=asyncio.subprocess.DEVNULL,
-            stdout=None,
-            stderr=None,
+            stdout=log,
+            stderr=log,
         )
 
         await proc.communicate()

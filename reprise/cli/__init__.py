@@ -52,6 +52,22 @@ def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
         fd.write(data)
 
 
+def int_or_zero(value: str) -> int:
+    try:
+        return int(value)
+    except ValueError:
+        return 0
+
+
+def get_next_file_name(path: Path) -> Path:
+    if not path.exists():
+        return path / '0'
+
+    max_log = max((int_or_zero(f.name) for f in path.iterdir() if f.is_file()), default=0)
+
+    return path / str(max_log + 1)
+
+
 @dataclass
 class JobSpec:
     origin: str
@@ -94,6 +110,8 @@ class Worker:
             await resource.destroy()
 
     async def run(self, jobspec: JobSpec) -> bool:
+        logging.info('run started')
+
         with file_lock(self._workdir.root.get_path() / 'jails.lock'):
             master_zfs = await self._get_prepared_jail(jobspec.jailname)
             packages_zfs = self._workdir.get_jail_packages(jobspec.jailname)
@@ -151,20 +169,33 @@ class Worker:
 
             plan = await Planner(jail).prepare([jobspec.origin], list(jobspec.origins_to_rebuild))
 
-            with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
-                await plan.fetch(jail)
+            log_path = get_next_file_name(self._workdir.get_logs().get_path())
 
-            logging.debug('restarting the jail with disabled network')
+            with open(log_path, 'w') as log:
+                logging.info('fetching')
 
-            await jail.destroy()
-            jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='reprise_nonet')
+                with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
+                    await plan.fetch(jail, log=log)
 
-            await plan.install(jail)
+                logging.debug('restarting the jail with disabled network')
 
-            await plan.test(jail)
+                await jail.destroy()
+                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='reprise_nonet')
+
+                logging.info('building')
+
+                await plan.install(jail, log=log)
+
+                logging.info('testing')
+
+                await plan.test(jail, log=log)
+
+            logging.info(f'done, log file: {log_path}')
         finally:
+            logging.info('cleaning up')
             await self._cleanup_jail(instance_zfs.get_path())
 
+        logging.info('run finished')
         return True
 
 

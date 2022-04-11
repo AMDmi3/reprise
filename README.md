@@ -52,7 +52,6 @@ Most of these will hopefully be solved at some point.
 - No support for options.
 - No support for ccache.
 - No support for build as user.
-- Unreadable logs.
 
 ## Requirements
 
