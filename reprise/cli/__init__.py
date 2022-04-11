@@ -248,24 +248,30 @@ async def discover_environment(args: argparse.Namespace) -> None:
 
 
 async def parse_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--portsdir', metavar='PATH', type=str, help='ports tree directory to use in jails')
-    parser.add_argument('--distdir', metavar='PATH', type=str, help='distfiles directory tree to use in jails')
+    parser = argparse.ArgumentParser()
 
-    parser.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', help='port origin(s) to rebuild from ports')
-    parser.add_argument('ports', metavar='PORT', nargs='*', help='port origin(s) to test')
+    group = parser.add_argument_group('general')
+
+    group.add_argument('--debug', action='store_true', help='enable debug logging')
+
+    group = parser.add_argument_group('job specification')
+    group.add_argument('-p', '--portsdir', metavar='PATH', type=str, help='ports tree directory to use in jails')
+    group.add_argument('--distdir', metavar='PATH', type=str, help='distfiles directory tree to use in jails (default: autodetect)')
+
+    group.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', help='port origin(s) to rebuild from ports')
+    group.add_argument('ports', metavar='PORT', nargs='*', help='port origin(s) to test')
 
     args = parser.parse_args()
-
-    await discover_environment(args)
 
     return args
 
 
 async def amain() -> None:
-    logging.basicConfig(level=logging.DEBUG)
-
     args = await parse_arguments()
+
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
+
+    await discover_environment(args)
 
     workdir = await Workdir.initialize()
 
