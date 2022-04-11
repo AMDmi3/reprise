@@ -219,6 +219,9 @@ async def discover_environment(args: argparse.Namespace) -> None:
         print('FATAL: no ports specified to build', file=sys.stderr)
         sys.exit(1)
 
+    if args.rebuild is None:
+        args.rebuild = []
+
 
 async def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
