@@ -63,6 +63,7 @@ class Planner:
         lines = await self._jail.execute(
             *flavor_args,
             'make', '-C', str(Path('/usr/ports') / port.origin),
+            '-V', 'EXTRACT_DEPENDS',
             '-V', 'BUILD_DEPENDS',
             '-V', 'RUN_DEPENDS',
             '-V', 'LIB_DEPENDS',
@@ -74,8 +75,8 @@ class Planner:
             return Port(origin, flavor[0] if flavor else None)
 
         return _PortDepends(
-            set(map(depend2port, ' '.join(lines[0:3]).split())),
-            set(map(depend2port, lines[3].split())),
+            depends=set(map(depend2port, ' '.join(lines[0:-1]).split())),
+            test_depends=set(map(depend2port, lines[-1].split())),
         )
 
     async def _get_port_package_name(self, port: Port) -> str:
