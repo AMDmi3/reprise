@@ -27,6 +27,7 @@ from reprise.execute import execute
 from reprise.jail import NetworkingMode, start_jail
 from reprise.jail.populate import JailSpec, populate_jail
 from reprise.lock import file_lock
+from reprise.logging_ import setup_logging
 from reprise.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
 from reprise.plan.planner import Planner
 from reprise.resources.enumerate import enumerate_resources
@@ -252,7 +253,7 @@ async def parse_arguments() -> argparse.Namespace:
 
     group = parser.add_argument_group('general')
 
-    group.add_argument('--debug', action='store_true', help='enable debug logging')
+    group.add_argument('-d', '--debug', action='store_true', help='enable debug logging')
 
     group = parser.add_argument_group('job specification')
     group.add_argument('-p', '--portsdir', metavar='PATH', type=str, help='ports tree directory to use in jails')
@@ -269,7 +270,7 @@ async def parse_arguments() -> argparse.Namespace:
 async def amain() -> None:
     args = await parse_arguments()
 
-    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
+    setup_logging(args.debug)
 
     await discover_environment(args)
 
