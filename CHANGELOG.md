@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.1.2
+
+* Improve logging
+* Fix FLAVOR handling
+
 ## 0.1.1
 
 * Don't fail on licenses which needs acceptance
