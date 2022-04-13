@@ -75,8 +75,8 @@ class PortTask(Task):
     def __repr__(self) -> str:
         return f'PortTask({self._port}, test={self._do_test})'
 
-    def _flavorarg(self) -> tuple[str] | tuple[()]:
-        return ('-DFLAVOR=' + self._port.flavor,) if self._port.flavor is not None else ()
+    def _flavorenv(self) -> tuple[str] | tuple[()]:
+        return ('FLAVOR=' + self._port.flavor,) if self._port.flavor is not None else ()
 
     async def fetch(self, jail: Jail, log: TextIO) -> bool:
         self._logger.debug(f'started fetching distfiles for port {self._port}')
@@ -90,7 +90,8 @@ class PortTask(Task):
             'USE_PACKAGE_DEPENDS_ONLY=1',
             'NO_IGNORE=1',
             '_LICENSE_STATUS=accepted',
-            'make', '-C', f'/usr/ports/{self._port.origin}', *self._flavorarg(), 'checksum',
+            *self._flavorenv(),
+            'make', '-C', f'/usr/ports/{self._port.origin}', 'checksum',
             log=log,
         )
 
@@ -109,7 +110,8 @@ class PortTask(Task):
             'PKG_ADD=false',
             'USE_PACKAGE_DEPENDS_ONLY=1',
             '_LICENSE_STATUS=accepted',
-            'make', '-C', f'/usr/ports/{self._port.origin}', *self._flavorarg(), 'install',  # XXX: clean if not do_test?
+            *self._flavorenv(),
+            'make', '-C', f'/usr/ports/{self._port.origin}', 'install',  # XXX: clean if not do_test?
             log=log,
         )
 
@@ -131,7 +133,8 @@ class PortTask(Task):
             'PKG_ADD=false',
             'USE_PACKAGE_DEPENDS_ONLY=1',
             '_LICENSE_STATUS=accepted',
-            'make', '-C', f'/usr/ports/{self._port.origin}', *self._flavorarg(), 'test',
+            *self._flavorenv(),
+            'make', '-C', f'/usr/ports/{self._port.origin}', 'test',
             log=log,
         )
 
