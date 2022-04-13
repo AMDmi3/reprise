@@ -293,7 +293,7 @@ async def amain() -> None:
 
     success = True
     for jobspec in jobspecs:
-        success = success and await worker.run(jobspec)
+        success = await worker.run(jobspec) and success
 
     sys.exit(0 if success else 1)
 
