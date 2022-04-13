@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -25,4 +25,4 @@ class JobSpec:
     portsdir: Path
     distdir: Path
     jailname: str
-    origins_to_rebuild: set[str] = field(default_factory=set)
+    origins_to_rebuild: set[str]
