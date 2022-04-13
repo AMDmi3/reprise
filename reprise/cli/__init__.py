@@ -173,7 +173,7 @@ class Worker:
 
             log_path = get_next_file_name(self._workdir.get_logs().get_path())
 
-            with open(log_path, 'w') as log:
+            with open(log_path, 'x') as log:
                 self._logger.info(f'log file used: {log_path}')
 
                 self._logger.info('fetching')
