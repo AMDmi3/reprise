@@ -30,15 +30,16 @@ class ElapsedFormatter(logging.Formatter):
     _start_time: float
 
     def __init__(self) -> None:
+        super().__init__()
         self._start_time = time.time()
 
-    def format(self, record: logging.LogRecord) -> str:  # noqa
+    def formatMessage(self, record: logging.LogRecord) -> str:  # noqa
         elapsed = _format_seconds(record.created - self._start_time)
         return f'[{elapsed}] {record.getMessage()}'
 
 
 class DebugElapsedFormatter(ElapsedFormatter):
-    def format(self, record: logging.LogRecord) -> str:  # noqa
+    def formatMessage(self, record: logging.LogRecord) -> str:  # noqa
         elapsed = _format_seconds(record.created - self._start_time)
         return f'[{elapsed}] {record.name:8} {record.getMessage()}'
 
