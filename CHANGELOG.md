@@ -9,6 +9,8 @@
   single jail)
 * Added support for storing build log
 * Hid most of log output under `--debug` mode, cleaned up logging
+* Add support for getting a list of ports to test from file with
+  `--file` argument
 
 ## 0.0.1
 

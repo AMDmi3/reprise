@@ -17,6 +17,7 @@
 
 import argparse
 import asyncio
+import contextlib
 import logging
 import os
 import sys
@@ -246,6 +247,19 @@ async def discover_environment(args: argparse.Namespace) -> None:
             args.distdir = lines[0]
             logger.debug(f'discovered DISTDIR: {args.distdir}')
 
+    if args.file:
+        if args.ports is None:
+            args.ports = []
+
+        with contextlib.ExitStack() as stack:
+            fd = sys.stdin if args.file == '-' else stack.enter_context(open(args.file))
+
+            args.ports.extend(
+                item
+                for line in fd
+                if (item := line.split('#')[0].strip())
+            )
+
     assert(args.portsdir)
 
     if not args.distdir:
@@ -272,6 +286,7 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('--distdir', metavar='PATH', type=str, help='distfiles directory tree to use in jails (default: autodetect)')
 
     group.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', help='port origin(s) to rebuild from ports')
+    group.add_argument('-f', '--file', type=str, help='path to file with port origin(s) to test (- to read from stdin)')
     group.add_argument('ports', metavar='PORT', nargs='*', help='port origin(s) to test')
 
     args = parser.parse_args()
