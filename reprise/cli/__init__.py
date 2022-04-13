@@ -79,6 +79,7 @@ class JobSpec:
 
 
 class Worker:
+    _logger = logging.getLogger('Job')
     _workdir: Workdir
 
     def __init__(self, workdir: Workdir) -> None:
@@ -89,29 +90,29 @@ class Worker:
         spec = _JAIL_SPECS[name]
 
         if await jail.exists() and not (jail.get_path() / 'usr').exists():
-            logging.debug(f'jail {name} is incomplete, destroying')
+            self._logger.debug(f'jail {name} is incomplete, destroying')
             await jail.destroy()
 
         if not await jail.exists():
-            logging.debug(f'creating jail {name}')
+            self._logger.debug(f'creating jail {name}')
             await jail.create(parents=True)
 
-            logging.debug(f'populating jail {name}')
+            self._logger.debug(f'populating jail {name}')
             await populate_jail(spec, jail.get_path())
 
             await jail.snapshot('clean')
 
-        logging.debug(f'jail {name} is ready')
+        self._logger.debug(f'jail {name} is ready')
 
         return jail
 
     async def _cleanup_jail(self, path: Path) -> None:
         for resource in await enumerate_resources(path):
-            logging.debug(f'cleaning up jail resource: {resource}')
+            self._logger.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
     async def run(self, jobspec: JobSpec) -> bool:
-        logging.info('run started')
+        self._logger.info(f'run started for {jobspec.origin}')
 
         with file_lock(self._workdir.root.get_path() / 'jails.lock'):
             master_zfs = await self._get_prepared_jail(jobspec.jailname)
@@ -127,10 +128,10 @@ class Worker:
         await self._cleanup_jail(instance_zfs.get_path())
 
         try:
-            logging.debug(f'cloning instance {instance_name}')
+            self._logger.debug(f'cloning instance {instance_name}')
             await instance_zfs.clone_from(master_zfs, 'clean', parents=True)
 
-            logging.debug('creating directories')
+            self._logger.debug('creating directories')
             ports_path = instance_zfs.get_path() / 'usr' / 'ports'
             distfiles_path = instance_zfs.get_path() / 'distfiles'
             work_path = instance_zfs.get_path() / 'work'
@@ -139,18 +140,18 @@ class Worker:
             for path in [ports_path, distfiles_path, work_path, packages_path]:
                 path.mkdir(parents=True, exist_ok=True)
 
-            logging.debug('installing resolv.conf')
+            self._logger.debug('installing resolv.conf')
             with open(instance_zfs.get_path() / 'etc' / 'resolv.conf', 'w') as fd:
                 fd.write('nameserver 8.8.8.8\n')
 
-            logging.debug('installing make.conf')
+            self._logger.debug('installing make.conf')
             with open(instance_zfs.get_path() / 'etc' / 'make.conf', 'w') as fd:
                 fd.write('BUILD_ALL_PYTHON_FLAVORS=yes\n')
 
-            logging.debug('fixing pkg config')
+            self._logger.debug('fixing pkg config')
             replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
 
-            logging.debug('mounting filesystems')
+            self._logger.debug('mounting filesystems')
             await asyncio.gather(
                 mount_devfs(instance_zfs.get_path() / 'dev'),
                 mount_nullfs(jobspec.portsdir, ports_path),
@@ -159,10 +160,10 @@ class Worker:
                 mount_tmpfs(work_path),
             )
 
-            logging.debug('starting jail')
+            self._logger.debug('starting jail')
             jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.UNRESTRICTED, hostname='reprise')
 
-            logging.debug('bootstrapping pkg')
+            self._logger.debug('bootstrapping pkg')
 
             await jail.execute('pkg', 'bootstrap', '-q', '-y')
 
@@ -173,31 +174,32 @@ class Worker:
             log_path = get_next_file_name(self._workdir.get_logs().get_path())
 
             with open(log_path, 'w') as log:
-                logging.info('fetching')
+                self._logger.info(f'log file used: {log_path}')
+
+                self._logger.info('fetching')
 
                 with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
                     await plan.fetch(jail, log=log)
 
-                logging.debug('restarting the jail with disabled network')
+                self._logger.debug('restarting the jail with disabled network')
 
                 await jail.destroy()
                 jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='reprise_nonet')
 
-                logging.info('building')
+                self._logger.info('installation')
 
                 await plan.install(jail, log=log)
 
-                logging.info('testing')
+                self._logger.info('testing')
 
                 await plan.test(jail, log=log)
 
-            logging.info(f'done, log file: {log_path}')
+            self._logger.info(f'run succeeded, log file: {log_path}')
         finally:
-            logging.info('cleaning up')
+            self._logger.info('cleaning up')
             await self._cleanup_jail(instance_zfs.get_path())
 
-        logging.info('run finished')
-        return True
+        return False
 
 
 _FALLBACK_PORTSDIR = '/usr/ports'
