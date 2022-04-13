@@ -113,6 +113,11 @@ async def generate_jobs(args: argparse.Namespace) -> list[JobSpec]:
 
     rebuild = set(args.rebuild) if args.rebuild is not None else set()
 
+    variables = {}
+
+    if args.vars is not None:
+        variables = dict(var.split('=', 1) for var in args.vars)
+
     return [
         JobSpec(
             origin=port,
@@ -123,6 +128,7 @@ async def generate_jobs(args: argparse.Namespace) -> list[JobSpec]:
             fail_fast=args.fail_fast,
             networking_isolation_build=NetworkingIsolationMode[args.networking_isolation_build],
             networking_isolation_test=NetworkingIsolationMode[args.networking_isolation_test],
+            variables=variables,
         )
         for port in ports
         for jailname in _USE_JAILS

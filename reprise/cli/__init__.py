@@ -135,6 +135,8 @@ class Worker:
             self._logger.debug('installing make.conf')
             with open(instance_zfs.get_path() / 'etc' / 'make.conf', 'w') as fd:
                 fd.write('BUILD_ALL_PYTHON_FLAVORS=yes\n')
+                for k, v in jobspec.all_variables.items():
+                    fd.write(f'{k}={v}\n')
 
             self._logger.debug('fixing pkg config')
             replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
@@ -240,6 +242,7 @@ async def parse_arguments() -> argparse.Namespace:
 
     group.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', help='port origin(s) to rebuild from ports')
     group.add_argument('-f', '--file', type=str, help='path to file with port origin(s) to test (- to read from stdin)')
+    group.add_argument('-V', '--vars', metavar='KEY=VALUE', nargs='+', type=str, help='port variables to set for the build')
     group.add_argument('ports', metavar='PORT', nargs='*', help='port origin(s) to test')
 
     args = parser.parse_args()

@@ -31,3 +31,9 @@ class JobSpec:
     fail_fast: bool
     networking_isolation_build: NetworkingIsolationMode
     networking_isolation_test: NetworkingIsolationMode
+    variables: dict[str, str]
+
+    @property
+    def all_variables(self) -> dict[str, str]:
+        # env vars generated for options will be added here later
+        return self.variables
