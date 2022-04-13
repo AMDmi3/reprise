@@ -17,16 +17,15 @@
 
 import argparse
 import asyncio
-import contextlib
 import logging
 import os
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 
-from reprise.execute import execute
 from reprise.jail import NetworkingMode, start_jail
 from reprise.jail.populate import JailSpec, populate_jail
+from reprise.jobs import JobSpec
+from reprise.jobs.generate import generate_jobs
 from reprise.lock import file_lock
 from reprise.logging_ import setup_logging
 from reprise.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
@@ -41,9 +40,6 @@ _JAIL_SPECS = {
     '13-i386': JailSpec(version='13.0-RELEASE', architecture='i386'),
     '13-amd64': JailSpec(version='13.0-RELEASE', architecture='amd64'),
 }
-
-
-_USE_JAILS = ['13-amd64']
 
 
 def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
@@ -68,15 +64,6 @@ def get_next_file_name(path: Path) -> Path:
     max_log = max((int_or_zero(f.name) for f in path.iterdir() if f.is_file()), default=0)
 
     return path / str(max_log + 1)
-
-
-@dataclass
-class JobSpec:
-    origin: str
-    portsdir: Path
-    distdir: Path
-    jailname: str
-    origins_to_rebuild: set[str] = field(default_factory=set)
 
 
 class Worker:
@@ -213,67 +200,6 @@ class Worker:
         return False
 
 
-_FALLBACK_PORTSDIR = '/usr/ports'
-
-
-async def discover_environment(args: argparse.Namespace) -> None:
-    logger = logging.getLogger('Discover')
-
-    if args.portsdir and args.distdir and args.ports:
-        return
-
-    logger.debug('some required args were not specified, need to discover')
-
-    if not args.portsdir and os.path.exists('Makefile'):
-        lines = await execute('make', '-V', 'PORTSDIR', '-V', 'PORTNAME', allow_failure=True)
-        if len(lines) == 2 and all(lines):
-            logger.debug('we seem to be in a port directory, using it')
-
-            args.portsdir = lines[0]
-            logger.debug(f'discovered PORTSDIR: {args.portsdir}')
-
-            if not args.ports:
-                origin = '/'.join(os.getcwd().rsplit('/', 2)[-2:])
-                logger.debug(f'assumed port to build: {origin}')
-                args.ports = [origin]
-
-    if not args.portsdir:
-        args.portsdir = _FALLBACK_PORTSDIR
-        logger.debug(f'assumed PORTSDIR: {args.portsdir}')
-
-    if not args.distdir:
-        lines = await execute('make', '-C', args.portsdir, '-V', 'DISTDIR', allow_failure=True)
-        if lines and lines[0]:
-            args.distdir = lines[0]
-            logger.debug(f'discovered DISTDIR: {args.distdir}')
-
-    if args.file:
-        if args.ports is None:
-            args.ports = []
-
-        with contextlib.ExitStack() as stack:
-            fd = sys.stdin if args.file == '-' else stack.enter_context(open(args.file))
-
-            args.ports.extend(
-                item
-                for line in fd
-                if (item := line.split('#')[0].strip())
-            )
-
-    assert(args.portsdir)
-
-    if not args.distdir:
-        print('FATAL: no distdir specified', file=sys.stderr)
-        sys.exit(1)
-
-    if not args.ports:
-        print('FATAL: no ports specified to build', file=sys.stderr)
-        sys.exit(1)
-
-    if args.rebuild is None:
-        args.rebuild = []
-
-
 async def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
@@ -299,24 +225,14 @@ async def amain() -> None:
 
     setup_logging(args.debug)
 
-    await discover_environment(args)
+    jobspecs = await generate_jobs(args)
+
+    if not jobspecs:
+        print('FATAL: no ports specified')
+        sys.exit(1)
 
     workdir = await Workdir.initialize()
-
-    worker = Worker(
-        workdir=workdir,
-    )
-
-    jobspecs = [
-        JobSpec(
-            origin=port,
-            portsdir=args.portsdir,
-            distdir=args.distdir,
-            jailname=jailname,
-        )
-        for port in set(args.ports)
-        for jailname in _USE_JAILS
-    ]
+    worker = Worker(workdir=workdir)
 
     success = True
     for jobspec in jobspecs:
