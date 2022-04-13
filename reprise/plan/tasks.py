@@ -89,6 +89,7 @@ class PortTask(Task):
             'PKG_ADD=false',
             'USE_PACKAGE_DEPENDS_ONLY=1',
             'NO_IGNORE=1',
+            '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
             'make', '-C', f'/usr/ports/{self._port.origin}', 'checksum',
             log=log,
@@ -108,6 +109,7 @@ class PortTask(Task):
             'WRKDIRPREFIX=/work',
             'PKG_ADD=false',
             'USE_PACKAGE_DEPENDS_ONLY=1',
+            '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
             'make', '-C', f'/usr/ports/{self._port.origin}', 'install',  # XXX: clean if not do_test?
             log=log,
@@ -130,6 +132,7 @@ class PortTask(Task):
             'WRKDIRPREFIX=/work',
             'PKG_ADD=false',
             'USE_PACKAGE_DEPENDS_ONLY=1',
+            '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
             'make', '-C', f'/usr/ports/{self._port.origin}', 'test',
             log=log,
