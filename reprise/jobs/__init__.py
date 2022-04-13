@@ -26,3 +26,4 @@ class JobSpec:
     distdir: Path
     jailname: str
     origins_to_rebuild: set[str]
+    fail_fast: bool

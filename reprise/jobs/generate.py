@@ -119,6 +119,7 @@ async def generate_jobs(args: argparse.Namespace) -> list[JobSpec]:
             distdir=defaults.distdir,
             jailname=jailname,
             origins_to_rebuild=rebuild,
+            fail_fast=args.fail_fast,
         )
         for port in ports
         for jailname in _USE_JAILS

@@ -167,7 +167,7 @@ class Worker:
                 self._logger.info('fetching')
 
                 with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
-                    if not await plan.fetch(jail, log=log):
+                    if not await plan.fetch(jail, log=log, fail_fast=jobspec.fail_fast):
                         self._logger.error(f'fetching failed, see log {log_path}')
                         return False
 
@@ -178,13 +178,13 @@ class Worker:
 
                 self._logger.info('installation')
 
-                if not await plan.install(jail, log=log):
+                if not await plan.install(jail, log=log, fail_fast=jobspec.fail_fast):
                     self._logger.error(f'installation failed, log file: {log_path}')
                     return False
 
                 self._logger.info('testing')
 
-                if not await plan.test(jail, log=log):
+                if not await plan.test(jail, log=log, fail_fast=jobspec.fail_fast):
                     self._logger.error(f'testing failed, log file: {log_path}')
                     return False
 
@@ -206,6 +206,7 @@ async def parse_arguments() -> argparse.Namespace:
     group = parser.add_argument_group('general')
 
     group.add_argument('-d', '--debug', action='store_true', help='enable debug logging')
+    group.add_argument('--fail-fast', action='store_true', help='stop processing after the first failure')
 
     group = parser.add_argument_group('job specification')
     group.add_argument('-p', '--portsdir', metavar='PATH', type=str, help='ports tree directory to use in jails')
