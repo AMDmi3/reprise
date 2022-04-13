@@ -37,3 +37,13 @@ class JobSpec:
     def all_variables(self) -> dict[str, str]:
         # env vars generated for options will be added here later
         return self.variables
+
+    def __repr__(self) -> str:
+        extra_components = []
+
+        extra_components.extend(f'{k}={v}' for k, v in self.all_variables.items())
+
+        if extra_components:
+            return f'{self.origin} ({", ".join(extra_components)})'
+        else:
+            return self.origin

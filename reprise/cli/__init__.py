@@ -100,7 +100,7 @@ class Worker:
             await resource.destroy()
 
     async def run(self, jobspec: JobSpec) -> bool:
-        self._logger.info(f'job started for {jobspec.origin}')
+        self._logger.info(f'job started for {jobspec}')
 
         with file_lock(self._workdir.root.get_path() / 'jails.lock'):
             master_zfs = await self._get_prepared_jail(jobspec.jailname)
