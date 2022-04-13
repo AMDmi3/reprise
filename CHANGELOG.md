@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.1.1
+
+* Don't fail on licenses which needs acceptance
+
 ## 0.1.0
 
 * Fixed issues with fetching from parallel builds
