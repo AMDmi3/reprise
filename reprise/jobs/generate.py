@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from reprise.execute import execute
+from reprise.jail import NetworkingIsolationMode
 from reprise.jobs import JobSpec
 
 _FALLBACK_PORTSDIR = '/usr/ports'
@@ -120,6 +121,8 @@ async def generate_jobs(args: argparse.Namespace) -> list[JobSpec]:
             jailname=jailname,
             origins_to_rebuild=rebuild,
             fail_fast=args.fail_fast,
+            networking_isolation_build=NetworkingIsolationMode[args.networking_isolation_build],
+            networking_isolation_test=NetworkingIsolationMode[args.networking_isolation_test],
         )
         for port in ports
         for jailname in _USE_JAILS

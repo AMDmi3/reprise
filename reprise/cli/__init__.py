@@ -22,7 +22,7 @@ import os
 import sys
 from pathlib import Path
 
-from reprise.jail import NetworkingMode, start_jail
+from reprise.jail import NetworkingIsolationMode, start_jail
 from reprise.jail.populate import JailSpec, populate_jail
 from reprise.jobs import JobSpec
 from reprise.jobs.generate import generate_jobs
@@ -149,7 +149,7 @@ class Worker:
             )
 
             self._logger.debug('starting jail')
-            jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.UNRESTRICTED, hostname='reprise')
+            jail = await start_jail(instance_zfs.get_path(), networking=NetworkingIsolationMode.UNRESTRICTED, hostname='reprise')
 
             self._logger.debug('bootstrapping pkg')
 
@@ -171,16 +171,21 @@ class Worker:
                         self._logger.error(f'fetching failed, see log {log_path}')
                         return False
 
-                self._logger.debug('restarting the jail with disabled network')
+                self._logger.debug('setting up the jail for building')
 
-                await jail.destroy()
-                jail = await start_jail(instance_zfs.get_path(), networking=NetworkingMode.RESTRICTED, hostname='reprise_nonet')
+                await jail.destroy()  # XXX: implement and use modification of running jail
+                jail = await start_jail(instance_zfs.get_path(), networking=jobspec.networking_isolation_build, hostname='reprise_nonet')
 
                 self._logger.info('installation')
 
                 if not await plan.install(jail, log=log, fail_fast=jobspec.fail_fast):
                     self._logger.error(f'installation failed, log file: {log_path}')
                     return False
+
+                self._logger.debug('setting up the jail for testing')
+
+                await jail.destroy()  # XXX: implement and use modification of running jail
+                jail = await start_jail(instance_zfs.get_path(), networking=jobspec.networking_isolation_test, hostname='reprise_nonet')
 
                 self._logger.info('testing')
 
@@ -207,6 +212,27 @@ async def parse_arguments() -> argparse.Namespace:
 
     group.add_argument('-d', '--debug', action='store_true', help='enable debug logging')
     group.add_argument('--fail-fast', action='store_true', help='stop processing after the first failure')
+
+    networking_isolation_choices = list(NetworkingIsolationMode.__members__)
+    networking_isolation_metavar = '|'.join(NetworkingIsolationMode.__members__)
+    group.add_argument(
+        '--networking-isolation-build',
+        type=str,
+        default='DISABLED',
+        choices=networking_isolation_choices,
+        metavar=networking_isolation_metavar,
+        help='network isolation mode for port building'
+    )
+    group.add_argument(
+        '--networking-isolation-test',
+        type=str,
+        # XXX: should probably change to UNRESTRICTED when we support build-as-user,
+        # as a lot of tests involve arbitrary networking operations
+        default='RESTRICTED',
+        choices=networking_isolation_choices,
+        metavar=networking_isolation_metavar,
+        help='network isolation mode for port testing'
+    )
 
     group = parser.add_argument_group('job specification')
     group.add_argument('-p', '--portsdir', metavar='PATH', type=str, help='ports tree directory to use in jails')

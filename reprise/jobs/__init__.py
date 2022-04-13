@@ -18,6 +18,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from reprise.jail import NetworkingIsolationMode
+
 
 @dataclass
 class JobSpec:
@@ -27,3 +29,5 @@ class JobSpec:
     jailname: str
     origins_to_rebuild: set[str]
     fail_fast: bool
+    networking_isolation_build: NetworkingIsolationMode
+    networking_isolation_test: NetworkingIsolationMode

@@ -79,18 +79,15 @@ class Jail(Resource):
         return f'jail {self._jid}'
 
 
-class NetworkingMode(Enum):
-    DISABLED = 1
-    RESTRICTED = 2
-    UNRESTRICTED = 3
+NetworkingIsolationMode = Enum('NetworkingIsolationMode', 'DISABLED RESTRICTED UNRESTRICTED')
 
 
-async def start_jail(path: Path, networking: NetworkingMode = NetworkingMode.DISABLED, hostname: str = '') -> Jail:
+async def start_jail(path: Path, networking: NetworkingIsolationMode = NetworkingIsolationMode.DISABLED, hostname: str = '') -> Jail:
     # XXX: poudriere checks kern.features.inet and kern.features.inet6
     # to see if these are available at all, we should probably do the same
-    if networking == NetworkingMode.UNRESTRICTED:
+    if networking == NetworkingIsolationMode.UNRESTRICTED:
         networking_args = ('ip4=inherit', 'ip6=inherit')
-    elif networking == NetworkingMode.RESTRICTED:
+    elif networking == NetworkingIsolationMode.RESTRICTED:
         networking_args = ('ip4.addr=127.0.0.1', 'ip6.addr=::1')
     else:
         networking_args = ('ip4=disable', 'ip6=disable')

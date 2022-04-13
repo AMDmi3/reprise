@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from reprise.jail import NetworkingMode, start_jail
+from reprise.jail import NetworkingIsolationMode, start_jail
 
 
 @pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='jail tests only supported on FreeBSD')
@@ -40,7 +40,7 @@ async def test_jail():
 @pytest.mark.skipif(os.getuid() != 0, reason='jail tests must be run as root')
 @pytest.mark.skipif('IM_OK_WITH_LEFTOVERS' not in os.environ, reason='please set IM_OK_WITH_LEFTOVERS env var if you acknowledge that these tests may produce leftover jails')
 async def test_nonetwork():
-    jail = await start_jail(Path('/'), hostname='reprise_test_jail_nonetwork', networking=NetworkingMode.DISABLED)
+    jail = await start_jail(Path('/'), hostname='reprise_test_jail_nonetwork', networking=NetworkingIsolationMode.DISABLED)
 
     # expected to die with "Non-recoverable resolver failure"
     with pytest.raises(RuntimeError):
