@@ -79,7 +79,7 @@ class PortTask(Task):
         return ('-DFLAVOR=' + self._port.flavor,) if self._port.flavor is not None else ()
 
     async def fetch(self, jail: Jail, log: TextIO) -> bool:
-        self._logger.debug(f'started fetching distfiles for port {self._port.origin}')
+        self._logger.debug(f'started fetching distfiles for port {self._port}')
 
         returncode = await jail.execute_by_line(
             'env',
@@ -94,12 +94,12 @@ class PortTask(Task):
             log=log,
         )
 
-        self._logger.debug(f'finished fetching distfiles for port {self._port.origin} with code {returncode}')
+        self._logger.debug(f'finished fetching distfiles for port {self._port} with code {returncode}')
 
         return returncode == 0
 
     async def install(self, jail: Jail, log: TextIO) -> bool:
-        self._logger.debug(f'started installation for port {self._port.origin}')
+        self._logger.debug(f'started installation for port {self._port}')
 
         returncode = await jail.execute_by_line(
             'env',
@@ -113,7 +113,7 @@ class PortTask(Task):
             log=log,
         )
 
-        self._logger.debug(f'finished installation for port {self._port.origin} with code {returncode}')
+        self._logger.debug(f'finished installation for port {self._port} with code {returncode}')
 
         return returncode == 0
 
@@ -121,7 +121,7 @@ class PortTask(Task):
         if not self._do_test:
             return True
 
-        self._logger.debug(f'started testing for port {self._port.origin}')
+        self._logger.debug(f'started testing for port {self._port}')
 
         returncode = await jail.execute_by_line(
             'env',
@@ -135,6 +135,6 @@ class PortTask(Task):
             log=log,
         )
 
-        self._logger.debug(f'finished testing for port {self._port.origin} with code {returncode}')
+        self._logger.debug(f'finished testing for port {self._port} with code {returncode}')
 
         return returncode == 0
