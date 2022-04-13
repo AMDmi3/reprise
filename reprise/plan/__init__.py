@@ -34,35 +34,49 @@ class Plan:
     def add_task(self, task: Task) -> None:
         self._tasks.append(task)
 
-    async def fetch(self, jail: Jail, log: TextIO, jobs: int = 1) -> None:
+    async def fetch(self, jail: Jail, log: TextIO, jobs: int = 1, fail_fast: bool = False) -> bool:
         self._logger.debug('fetch started')
         sem = asyncio.Semaphore(jobs)
+        success = True
 
         async def wrapper(task: Task) -> None:
-            async with sem:
-                await task.fetch(jail, log)
+            nonlocal success, sem, fail_fast
+            if not fail_fast or success:
+                async with sem:
+                    success = await task.fetch(jail, log) and success
 
         await asyncio.gather(*map(wrapper, self._tasks))
 
-        self._logger.debug('fetch finished')
+        self._logger.debug(f'fetch {"succeeded" if success else "failed"}')
 
-    async def install(self, jail: Jail, log: TextIO) -> None:
+        return success
+
+    async def install(self, jail: Jail, log: TextIO, fail_fast: bool = False) -> bool:
         self._logger.debug('install started')
 
         # no parallelization(
+        success = True
         for task in self._tasks:
-            await task.install(jail, log)
+            if not fail_fast or success:
+                success = await task.install(jail, log) and success
 
-        self._logger.debug('install finished')
+        self._logger.debug(f'install {"succeeded" if success else "failed"}')
 
-    async def test(self, jail: Jail, log: TextIO, jobs: int = 1) -> None:
-        self._logger.debug('test started')
+        return success
+
+    async def test(self, jail: Jail, log: TextIO, jobs: int = 1, fail_fast: bool = False) -> bool:
+        self._logger.debug('testing started')
         sem = asyncio.Semaphore(jobs)
+        success = True
 
         async def wrapper(task: Task) -> None:
-            async with sem:
-                await task.test(jail, log)
+            nonlocal success, sem, fail_fast
+            if not fail_fast or success:
+                async with sem:
+                    success = await task.test(jail, log) and success
 
         await asyncio.gather(*map(wrapper, self._tasks))
 
-        self._logger.debug('test run finished')
+        self._logger.debug(f'testing {"succeeded" if success else "failed"}')
+
+        return success

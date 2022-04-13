@@ -179,7 +179,9 @@ class Worker:
                 self._logger.info('fetching')
 
                 with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
-                    await plan.fetch(jail, log=log)
+                    if not await plan.fetch(jail, log=log):
+                        self._logger.error(f'fetching failed, see log {log_path}')
+                        return False
 
                 self._logger.debug('restarting the jail with disabled network')
 
@@ -188,13 +190,21 @@ class Worker:
 
                 self._logger.info('installation')
 
-                await plan.install(jail, log=log)
+                if not await plan.install(jail, log=log):
+                    self._logger.error(f'installation failed, log file: {log_path}')
+                    return False
 
                 self._logger.info('testing')
 
-                await plan.test(jail, log=log)
+                if not await plan.test(jail, log=log):
+                    self._logger.error(f'testing failed, log file: {log_path}')
+                    return False
 
             self._logger.info(f'run succeeded, log file: {log_path}')
+
+            return True
+        except RuntimeError:
+            self._logger.exception('run failed due to internal error')
         finally:
             self._logger.info('cleaning up')
             await self._cleanup_jail(instance_zfs.get_path())

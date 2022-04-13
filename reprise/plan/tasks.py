@@ -27,15 +27,15 @@ class Task(ABC):
     _logger = logging.getLogger('Task')
 
     @abstractmethod
-    async def fetch(self, jail: Jail, log: TextIO) -> None:
+    async def fetch(self, jail: Jail, log: TextIO) -> bool:
         pass
 
     @abstractmethod
-    async def install(self, jail: Jail, log: TextIO) -> None:
+    async def install(self, jail: Jail, log: TextIO) -> bool:
         pass
 
     @abstractmethod
-    async def test(self, jail: Jail, log: TextIO) -> None:
+    async def test(self, jail: Jail, log: TextIO) -> bool:
         pass
 
 
@@ -48,18 +48,20 @@ class PackageTask(Task):
     def __repr__(self) -> str:
         return f'PackageTask({self._pkgname})'
 
-    async def fetch(self, jail: Jail, log: TextIO) -> None:
-        self._logger.debug(f'started fetching for {self._pkgname}')
-        await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'fetch', '-U', '-q', '-y', self._pkgname)
-        self._logger.debug(f'finished fetching for {self._pkgname}')
+    async def fetch(self, jail: Jail, log: TextIO) -> bool:
+        self._logger.debug(f'started fetching for package {self._pkgname}')
+        returncode = await jail.execute_by_line('env', 'PKG_CACHEDIR=/packages', 'pkg', 'fetch', '-U', '-q', '-y', self._pkgname, log=log)
+        self._logger.debug(f'finished fetching for package {self._pkgname} with code {returncode}')
+        return returncode == 0
 
-    async def install(self, jail: Jail, log: TextIO) -> None:
-        self._logger.debug(f'started installation for {self._pkgname}')
-        await jail.execute('env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', self._pkgname)
-        self._logger.debug(f'finished installation for {self._pkgname}')
+    async def install(self, jail: Jail, log: TextIO) -> bool:
+        self._logger.debug(f'started installation for package {self._pkgname}')
+        returncode = await jail.execute_by_line('env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', self._pkgname, log=log)
+        self._logger.debug(f'finished installation for package {self._pkgname} with code {returncode}')
+        return returncode == 0
 
-    async def test(self, jail: Jail, log: TextIO) -> None:
-        pass
+    async def test(self, jail: Jail, log: TextIO) -> bool:
+        return True
 
 
 class PortTask(Task):
@@ -76,10 +78,10 @@ class PortTask(Task):
     def _flavorenv(self) -> tuple[str] | tuple[()]:
         return ('FLAVOR=' + self._port.flavor,) if self._port.flavor is not None else ()
 
-    async def fetch(self, jail: Jail, log: TextIO) -> None:
+    async def fetch(self, jail: Jail, log: TextIO) -> bool:
         self._logger.debug(f'started fetching distfiles for port {self._port.origin}')
 
-        await jail.execute_by_line(
+        returncode = await jail.execute_by_line(
             'env',
             'BATCH=1',
             'DISTDIR=/distfiles',
@@ -92,10 +94,12 @@ class PortTask(Task):
             log=log,
         )
 
-        self._logger.debug(f'finished fetching distfiles for port {self._port.origin}')
+        self._logger.debug(f'finished fetching distfiles for port {self._port.origin} with code {returncode}')
 
-    async def install(self, jail: Jail, log: TextIO) -> None:
-        self._logger.debug(f'started building for port {self._port.origin}')
+        return returncode == 0
+
+    async def install(self, jail: Jail, log: TextIO) -> bool:
+        self._logger.debug(f'started installation for port {self._port.origin}')
 
         returncode = await jail.execute_by_line(
             'env',
@@ -109,15 +113,13 @@ class PortTask(Task):
             log=log,
         )
 
-        if returncode != 0:
-            self._logger.debug(f'failed building for port {self._port.origin}')
-            raise RuntimeError('build failed')
+        self._logger.debug(f'finished installation for port {self._port.origin} with code {returncode}')
 
-        self._logger.debug(f'finished building for port {self._port.origin}')
+        return returncode == 0
 
-    async def test(self, jail: Jail, log: TextIO) -> None:
+    async def test(self, jail: Jail, log: TextIO) -> bool:
         if not self._do_test:
-            return
+            return True
 
         self._logger.debug(f'started testing for port {self._port.origin}')
 
@@ -133,8 +135,6 @@ class PortTask(Task):
             log=log,
         )
 
-        if returncode != 0:
-            self._logger.debug(f'failed testing for port {self._port.origin}')
-            raise RuntimeError('testing failed')
+        self._logger.debug(f'finished testing for port {self._port.origin} with code {returncode}')
 
-        self._logger.debug(f'finished testing for port {self._port.origin}')
+        return returncode == 0
