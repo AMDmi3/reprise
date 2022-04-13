@@ -113,7 +113,7 @@ class Worker:
             await resource.destroy()
 
     async def run(self, jobspec: JobSpec) -> bool:
-        self._logger.info(f'run started for {jobspec.origin}')
+        self._logger.info(f'job started for {jobspec.origin}')
 
         with file_lock(self._workdir.root.get_path() / 'jails.lock'):
             master_zfs = await self._get_prepared_jail(jobspec.jailname)
@@ -201,11 +201,11 @@ class Worker:
                     self._logger.error(f'testing failed, log file: {log_path}')
                     return False
 
-            self._logger.info(f'run succeeded, log file: {log_path}')
+            self._logger.info(f'job succeeded, log file: {log_path}')
 
             return True
         except RuntimeError:
-            self._logger.exception('run failed due to internal error')
+            self._logger.exception('job failed due to internal error')
         finally:
             self._logger.info('cleaning up')
             await self._cleanup_jail(instance_zfs.get_path())
