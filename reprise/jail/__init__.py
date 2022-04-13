@@ -40,6 +40,7 @@ class Jail(Resource):
         return await execute(JEXEC_CMD, '-l', str(self._jid), program, *args, **kwargs)
 
     async def execute_by_line(self, program: str, *args: Any, log: TextIO | None) -> int:
+        logging.getLogger('Execute').debug('executing ' + ' '.join([program] + list(args)))
         proc = await asyncio.create_subprocess_exec(
             JEXEC_CMD, '-l', str(self._jid),
             program, *args,
