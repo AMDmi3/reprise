@@ -30,7 +30,7 @@ from reprise.resources.enumerate import enumerate_resources
 from reprise.workdir import Workdir
 
 
-def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
+def _replace_in_file(path: Path, pattern: str, replacement: str) -> None:
     with open(path, 'r') as fd:
         data = fd.read().replace(pattern, replacement)
 
@@ -38,18 +38,18 @@ def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
         fd.write(data)
 
 
-def int_or_zero(value: str) -> int:
+def _int_or_zero(value: str) -> int:
     try:
         return int(value)
     except ValueError:
         return 0
 
 
-def get_next_file_name(path: Path) -> Path:
+def _get_next_file_name(path: Path) -> Path:
     if not path.exists():
         return path / '0'
 
-    max_log = max((int_or_zero(f.name) for f in path.iterdir() if f.is_file()), default=0)
+    max_log = max((_int_or_zero(f.name) for f in path.iterdir() if f.is_file()), default=0)
 
     return path / str(max_log + 1)
 
@@ -101,7 +101,7 @@ class JobRunner:
                     fd.write(f'{k}={v}\n')
 
             self._logger.debug('fixing pkg config')
-            replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
+            _replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
 
             self._logger.debug('mounting filesystems')
             await asyncio.gather(
@@ -123,7 +123,7 @@ class JobRunner:
 
             plan = await Planner(prison).prepare(jobspec.origin, jobspec.origins_to_rebuild)
 
-            log_path = get_next_file_name(self._workdir.get_logs().get_path())
+            log_path = _get_next_file_name(self._workdir.get_logs().get_path())
 
             with open(log_path, 'x') as log:
                 self._logger.info(f'log file used: {log_path}')
