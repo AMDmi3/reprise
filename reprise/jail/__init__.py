@@ -31,7 +31,7 @@ from reprise.zfs import ZFS
 class JailSpec:
     name: str
     version: str
-    architecture: str
+    arch: str
 
 
 class JailManager:
@@ -98,7 +98,7 @@ async def _check_jail_compilance(jail_zfs: ZFS, spec: JailSpec) -> bool:
     if await jail_zfs.get_property_maybe('reprise:jail_version') != spec.version:
         return False
 
-    if await jail_zfs.get_property_maybe('reprise:jail_arch') != spec.architecture:
+    if await jail_zfs.get_property_maybe('reprise:jail_arch') != spec.arch:
         return False
 
     return True
@@ -137,7 +137,7 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
 
             logger.debug(f'populating jail {spec.name}')
 
-            url_prefix = f'https://download.freebsd.org/ftp/releases/{spec.architecture}/{spec.version}/'
+            url_prefix = f'https://download.freebsd.org/ftp/releases/{spec.arch}/{spec.version}/'
             for tarball in ['base.txz']:
                 command = f'fetch -o- {url_prefix}/{tarball} | tar -C {jail_path} -x -f- -z'
 
@@ -152,7 +152,7 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
             await jail_zfs.snapshot('clean')
 
             await jail_zfs.set_property('reprise:jail_version', spec.version)
-            await jail_zfs.set_property('reprise:jail_arch', spec.architecture)
+            await jail_zfs.set_property('reprise:jail_arch', spec.arch)
             await jail_zfs.set_property('reprise:jail_ready', 'yes')
 
             logger.debug(f'successfully created jail {spec.name}')
