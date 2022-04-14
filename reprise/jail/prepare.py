@@ -20,6 +20,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from reprise.execute import execute
 from reprise.jail import JailSpec
 from reprise.lock import file_lock
 from reprise.workdir import Workdir
@@ -27,7 +28,7 @@ from reprise.zfs import ZFS
 
 # Bump this after modifying jail creation code to push changes to users;
 # When this number is changes, all jails are recreated
-_JAIL_EPOCH = 1
+_JAIL_EPOCH = 2
 
 _JAIL_TARBALLS = ['base.txz']
 
@@ -64,6 +65,46 @@ async def _install_tarball(path: Path, url: str) -> None:
         raise RuntimeError('failed to populate jail ' + stderr.decode('utf-8'))
 
 
+def _get_osversion(jail_path: Path) -> str:
+    with open(jail_path / 'usr/include/sys/param.h') as f:
+        for line in f:
+            if line.startswith('#define __FreeBSD_version '):
+                return line.split()[2]
+
+    raise RuntimeError('cannot determine jail OSVERSION')
+
+
+async def _update_login_conf(jail_path: Path, spec: JailSpec) -> None:
+    login_conf_path = jail_path / 'etc/login.conf'
+
+    login_env = {
+        'UNAME_r': spec.version,
+        'UNAME_v': f'FreeBSD {spec.version}',
+        'UNAME_m': spec.arch,
+        'UNAME_p': spec.arch,
+        'OSVERSION': _get_osversion(jail_path),
+    }
+
+    login_env_str = ','.join(f'{k}={v}' for k, v in login_env.items())
+
+    tmp_path = login_conf_path.with_suffix('.new')
+
+    done = False
+    with open(login_conf_path) as old:
+        with open(tmp_path, 'x') as new:
+            for line in old:
+                if ':setenv=' in line and not done:
+                    line = line.replace(':\\', f',{login_env_str}:\\')
+                    done = True
+
+                new.write(line)
+
+    tmp_path.replace(login_conf_path)
+
+    if not done:
+        raise RuntimeError('failed to modify jail login.conf')
+
+    await execute('cap_mkdb', str(login_conf_path))
 
 
 async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
@@ -95,6 +136,9 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
                 logger.debug(f'fetching and installing {tarball}')
                 url = f'{_FREEBSD_RELEASES_URL}/{spec.arch}/{spec.version}/{tarball}'
                 await _install_tarball(jail_zfs.get_path(), url)
+
+            logger.debug('updating login.conf')
+            await _update_login_conf(jail_zfs.get_path(), spec)
 
             await jail_zfs.snapshot('clean')
 

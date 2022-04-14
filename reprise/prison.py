@@ -37,12 +37,17 @@ class Prison(Resource):
         self._path = path
 
     async def execute(self, program: str, *args: Any, **kwargs: Any) -> list[str]:
-        return await execute(JEXEC_CMD, '-l', str(self._jid), program, *args, **kwargs)
+        return await execute(
+            JEXEC_CMD, '-l', str(self._jid),
+            '/usr/bin/env', '-L0',  # XXX: may be changed to -L- when 12.x is gone
+            program, *args, **kwargs
+        )
 
     async def execute_by_line(self, program: str, *args: Any, log: TextIO | None) -> int:
         logging.getLogger('Execute').debug('executing ' + ' '.join([program] + list(args)))
         proc = await asyncio.create_subprocess_exec(
             JEXEC_CMD, '-l', str(self._jid),
+            '/usr/bin/env', '-L0',  # XXX: may be changed to -L- when 12.x is gone
             program, *args,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=log,
