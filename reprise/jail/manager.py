@@ -20,6 +20,7 @@ import platform
 from collections import defaultdict
 from typing import Iterable
 
+from reprise.helpers import unicalize
 from reprise.jail import JailSpec
 
 
@@ -64,13 +65,13 @@ class JailManager:
                     self._sets['default'] = [spec]
 
     def get_specs(self, names: Iterable[str]) -> list[JailSpec]:
-        res = []
-        seen = set()
-
-        for name in names:
-            for spec in self._sets.get(name, []):
-                if spec not in seen:
-                    seen.add(spec)
-                    res.append(spec)
-
-        return res
+        return unicalize(
+            sum(
+                (
+                    self._sets[name]
+                    for name in names
+                    if name in self._sets
+                ),
+                []
+            )
+        )

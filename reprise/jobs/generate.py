@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Iterator
 
 from reprise.execute import execute
+from reprise.helpers import unicalize
 from reprise.jail.manager import JailManager
 from reprise.jobs import JobSpec
 from reprise.prison import NetworkingIsolationMode
@@ -202,17 +203,19 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
 
     defaults = await _discover_defaults(args)
 
-    ports: set[str] = set()
+    ports: list[str] = []
 
     if args.file:
         with contextlib.ExitStack() as stack:
             fd = sys.stdin if args.file == '-' else stack.enter_context(open(args.file))
 
-            ports.update(
+            ports.extend(
                 item
                 for line in fd
                 if (item := line.split('#')[0].strip())
             )
+
+            ports = unicalize(ports)
 
             logger.debug(f'added {len(ports)} port(s) from the file')
 
@@ -223,14 +226,16 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
             if port == '.':
                 if defaults.current_port is None:
                     raise RuntimeError('cannot use `.` as a port name when not in a port directory')
-                ports.add(defaults.current_port)
+                ports.append(defaults.current_port)
             else:
-                ports.add(port)
+                ports.append(port)
+
+        ports = unicalize(ports)
 
         logger.debug(f'adding {len(ports) - prev_ports_count} port(s) from the command line')
 
     if not ports and defaults.current_port is not None:
-        ports = {defaults.current_port}
+        ports = [defaults.current_port]
         logger.debug(f'assuming to build port {defaults.current_port}')
 
     rebuild = set(args.rebuild)
