@@ -1,6 +1,7 @@
-# reprise
-
 [![CI](https://github.com/AMDmi3/reprise/actions/workflows/ci.yml/badge.svg)](https://github.com/AMDmi3/reprise/actions/workflows/ci.yml)
+[![Github commits (since latest release)](https://img.shields.io/github/commits-since/AMDmi3/reprise/latest.svg)](https://github.com/AMDmi3/reprise)
+
+# reprise
 
 reprise is a tool primarily designed to test package production
 on FreeBSD.
