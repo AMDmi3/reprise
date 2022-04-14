@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Iterator
 
 from reprise.execute import execute
-from reprise.jail import JailManager
+from reprise.jail.manager import JailManager
 from reprise.jobs import JobSpec
 from reprise.prison import NetworkingIsolationMode
 

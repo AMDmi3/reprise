@@ -22,7 +22,7 @@ import os
 import sys
 from pathlib import Path
 
-from reprise.jail import get_prepared_jail
+from reprise.jail.prepare import get_prepared_jail
 from reprise.jobs import JobSpec
 from reprise.jobs.generate import generate_jobs
 from reprise.lock import file_lock
