@@ -45,7 +45,7 @@ setup(
         'Topic :: System :: Archiving :: Packaging',
     ],
     python_requires='>=3.10',
-    install_requires=['jsonslicer>=0.1.7'],
+    install_requires=['jsonslicer>=0.1.7', 'termcolor>=1.1.0'],
     packages=find_packages(include=['reprise*']),
     entry_points={
         'console_scripts': ['reprise=reprise.cli:main']
