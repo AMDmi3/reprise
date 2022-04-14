@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.2.0
+
+* Fixed `--rebuild` having no effect
+* Added fail-fast mode which stops the job after the first failure
+* Added more control over networking isolation
+* Added passing custom `make.conf` variables to the build (`-V FOO=bar`)
+* Added option combinations testing mode (`-O`)
+* Added support for multiple jails (`-j`)
+* Added automatic jail recreation on spec change
+
 ## 0.1.2
 
 * Improve logging
