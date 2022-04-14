@@ -33,6 +33,7 @@ async def parse_arguments() -> argparse.Namespace:
     group = parser.add_argument_group('general')
 
     group.add_argument('-d', '--debug', action='store_true', help='enable debug logging')
+    group.add_argument('-n', '--dry-run', action='store_true', help='don\'t actually build anything')
     group.add_argument('--fail-fast', action='store_true', help='stop processing after the first failure')
 
     networking_isolation_choices = list(NetworkingIsolationMode.__members__)
@@ -84,6 +85,9 @@ async def amain() -> None:
     if not jobspecs:
         print('FATAL: nothing to do')
         sys.exit(1)
+
+    if args.dry_run:
+        sys.exit(0)
 
     workdir = await Workdir.initialize()
     runner = JobRunner(workdir=workdir)
