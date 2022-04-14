@@ -197,7 +197,7 @@ async def generate_jobs(args: argparse.Namespace) -> AsyncGenerator[Any, JobSpec
 
             logger.debug(f'added {len(ports)} port(s) from the file')
 
-    if isinstance(args.ports, list):
+    if args.ports:
         prev_ports_count = len(ports)
 
         for port in args.ports:
@@ -214,11 +214,9 @@ async def generate_jobs(args: argparse.Namespace) -> AsyncGenerator[Any, JobSpec
         ports = {defaults.current_port}
         logger.debug(f'assuming to build port {defaults.current_port}')
 
-    rebuild = set(args.rebuild) if args.rebuild is not None else set()
+    rebuild = set(args.rebuild)
 
-    variables = {}
-    if args.vars is not None:
-        variables = dict(var.split('=', 1) for var in args.vars)
+    variables = dict(var.split('=', 1) for var in args.vars)
 
     for jailname in _USE_JAILS:
         for port in ports:

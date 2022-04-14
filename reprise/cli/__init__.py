@@ -240,11 +240,11 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('-p', '--portsdir', metavar='PATH', type=str, help='ports tree directory to use in jails')
     group.add_argument('--distdir', metavar='PATH', type=str, help='distfiles directory tree to use in jails (default: autodetect)')
 
-    group.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', help='port origin(s) to rebuild from ports')
+    group.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', default=[], help='port origin(s) to rebuild from ports')
     group.add_argument('-f', '--file', type=str, help='path to file with port origin(s) to test (- to read from stdin)')
-    group.add_argument('-V', '--vars', metavar='KEY=VALUE', nargs='+', type=str, help='port variables to set for the build')
+    group.add_argument('-V', '--vars', metavar='KEY=VALUE', nargs='+', default=[], type=str, help='port variables to set for the build')
     group.add_argument('-O', '--options', action='store_true', help='test port options combinations')
-    group.add_argument('ports', metavar='PORT', nargs='*', help='port origin(s) to test')
+    group.add_argument('ports', metavar='PORT', nargs='*', default=[], help='port origin(s) to test')
 
     args = parser.parse_args()
 
