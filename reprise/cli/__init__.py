@@ -22,6 +22,7 @@ import os
 import sys
 from pathlib import Path
 
+from reprise.jail.manager import JailManager
 from reprise.jail.prepare import get_prepared_jail
 from reprise.jobs import JobSpec
 from reprise.jobs.generate import generate_jobs
@@ -223,7 +224,9 @@ async def amain() -> None:
 
     setup_logging(args.debug)
 
-    jobspecs = [job async for job in generate_jobs(args)]
+    jail_manager = JailManager()
+
+    jobspecs = [job async for job in generate_jobs(args, jail_manager)]
 
     if not jobspecs:
         print('FATAL: nothing to do')

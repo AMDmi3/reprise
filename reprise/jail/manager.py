@@ -25,15 +25,9 @@ from reprise.jail import JailSpec
 
 class JailManager:
     _logger = logging.getLogger('JailMgr')
-    _instance = None
 
     _jails: list[JailSpec]
     _sets: dict[str, list[JailSpec]]
-
-    def __new__(cls) -> 'JailManager':
-        if cls._instance is None:
-            cls._instance = super(JailManager, cls).__new__(cls)
-        return cls._instance
 
     def __init__(self) -> None:
         self._jails = []

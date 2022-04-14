@@ -176,7 +176,7 @@ def _iterate_options_combinations(variables: dict[str, set[str]]) -> Iterator[di
             yield {choice: True for choice in choices}
 
 
-async def generate_jobs(args: argparse.Namespace) -> AsyncGenerator[Any, JobSpec]:
+async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> AsyncGenerator[Any, JobSpec]:
     logger = logging.getLogger('Generate')
 
     defaults = await _discover_defaults(args)
@@ -216,7 +216,7 @@ async def generate_jobs(args: argparse.Namespace) -> AsyncGenerator[Any, JobSpec
 
     variables = dict(var.split('=', 1) for var in args.vars)
 
-    jailspecs = JailManager().get_specs(args.jails)
+    jailspecs = jail_manager.get_specs(args.jails)
 
     for jailspec in jailspecs:
         for port in ports:
