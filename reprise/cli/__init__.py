@@ -83,9 +83,9 @@ def not_colored(message: str, *args: Any, **kwargs: Any) -> str:
 
 
 def print_summary(specs: Iterable[JobSpec]) -> None:
-    print('Job summary:')
+    print('Job summary:', file=sys.stderr)
     for spec in specs:
-        print(f' * {spec}')
+        print(f' * {spec}', file=sys.stderr)
 
 
 def print_results(results: Iterable[JobResult]) -> None:
