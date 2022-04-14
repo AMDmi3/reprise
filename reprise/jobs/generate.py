@@ -252,6 +252,9 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
 
             # XXX: to be correct, options should be generated inside a jail
             if args.options:
+                if args.exclude_default_options:
+                    options_combinations = []
+
                 options_combinations.extend(
                     _generate_options_combinations(
                         await _get_port_options_vars(defaults.portsdir / port),
@@ -259,7 +262,8 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
                         exclude_options=set(args.exclude_options) if args.exclude_options else set(),
                     )
                 )
-                logger.debug(f'{len(options_combinations) - 1} additional options combination(s) generated')
+
+                logger.debug(f'{len(options_combinations)} options combination(s) generated')
 
             for options in options_combinations:
                 yield JobSpec(

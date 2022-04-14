@@ -163,6 +163,9 @@ It is not possible to test all combinations as it would lead to
 It's possible to limit the number of variants with `--excluded-options`
 and `--included-options` options.
 
+It's also possible to exclude default options combination (for instance,
+if you've already tested it another way) with `--exclude-default-options`.
+
 ### Rebuilding dependencies
 
 As mentioned **reprise** always uses prebuilt packages for dependencies.
