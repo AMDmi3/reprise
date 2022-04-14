@@ -24,9 +24,13 @@ from reprise.lock import file_lock
 from reprise.workdir import Workdir
 from reprise.zfs import ZFS
 
+# Bump this after modifying jail creation code to push changes to users;
+# When this number is changes, all jails are recreated
+_JAIL_EPOCH = 1
+
 
 async def _check_jail_compilance(jail_zfs: ZFS, spec: JailSpec) -> bool:
-    if await jail_zfs.get_property_maybe('reprise:jail_ready') != 'yes':
+    if await jail_zfs.get_property_maybe('reprise:jail_ready_epoch') != str(_JAIL_EPOCH):
         return False
 
     if await jail_zfs.get_property_maybe('reprise:jail_version') != spec.version:
@@ -66,10 +70,8 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
             do_recreate = True
 
         if do_recreate:
-            logger.debug(f'creating jail {spec.name}')
+            logger.info(f'creating jail {spec.name}')
             await jail_zfs.create(parents=True)
-
-            logger.debug(f'populating jail {spec.name}')
 
             url_prefix = f'https://download.freebsd.org/ftp/releases/{spec.arch}/{spec.version}/'
             for tarball in ['base.txz']:
@@ -87,8 +89,8 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
 
             await jail_zfs.set_property('reprise:jail_version', spec.version)
             await jail_zfs.set_property('reprise:jail_arch', spec.arch)
-            await jail_zfs.set_property('reprise:jail_ready', 'yes')
+            await jail_zfs.set_property('reprise:jail_ready_epoch', str(_JAIL_EPOCH))
 
-            logger.debug(f'successfully created jail {spec.name}')
+            logger.info(f'successfully created jail {spec.name}')
 
     return PreparedJail(jail_zfs, packages_zfs)
