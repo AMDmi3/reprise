@@ -3,6 +3,8 @@
 
 # reprise
 
+![Screenshot](docs/screenshot.png)
+
 reprise is a tool primarily designed to test package production
 on FreeBSD.
 
