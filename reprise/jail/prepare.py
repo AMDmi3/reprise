@@ -18,6 +18,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 from reprise.jail import JailSpec
 from reprise.lock import file_lock
@@ -27,6 +28,16 @@ from reprise.zfs import ZFS
 # Bump this after modifying jail creation code to push changes to users;
 # When this number is changes, all jails are recreated
 _JAIL_EPOCH = 1
+
+_JAIL_TARBALLS = ['base.txz']
+
+_FREEBSD_RELEASES_URL = 'https://download.freebsd.org/ftp/releases'
+
+
+@dataclass
+class PreparedJail:
+    jail_zfs: ZFS
+    packages_zfs: ZFS
 
 
 async def _check_jail_compilance(jail_zfs: ZFS, spec: JailSpec) -> bool:
@@ -42,10 +53,17 @@ async def _check_jail_compilance(jail_zfs: ZFS, spec: JailSpec) -> bool:
     return True
 
 
-@dataclass
-class PreparedJail:
-    jail_zfs: ZFS
-    packages_zfs: ZFS
+async def _install_tarball(path: Path, url: str) -> None:
+    command = f'fetch -o- {url} | tar -C {path} -x -f- -z'
+
+    proc = await asyncio.create_subprocess_shell(command, stderr=asyncio.subprocess.PIPE)
+
+    _, stderr = await proc.communicate()
+
+    if proc.returncode != 0:
+        raise RuntimeError('failed to populate jail ' + stderr.decode('utf-8'))
+
+
 
 
 async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
@@ -73,17 +91,10 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
             logger.info(f'creating jail {spec.name}')
             await jail_zfs.create(parents=True)
 
-            url_prefix = f'https://download.freebsd.org/ftp/releases/{spec.arch}/{spec.version}/'
-            for tarball in ['base.txz']:
-                command = f'fetch -o- {url_prefix}/{tarball} | tar -C {jail_path} -x -f- -z'
-
-                proc = await asyncio.create_subprocess_shell(command, stderr=asyncio.subprocess.PIPE)
-
-                _, stderr = await proc.communicate()
-
-                if proc.returncode != 0:
-                    await jail_zfs.destroy()
-                    raise RuntimeError('failed to populate jail ' + stderr.decode('utf-8'))
+            for tarball in _JAIL_TARBALLS:
+                logger.debug(f'fetching and installing {tarball}')
+                url = f'{_FREEBSD_RELEASES_URL}/{spec.arch}/{spec.version}/{tarball}'
+                await _install_tarball(jail_zfs.get_path(), url)
 
             await jail_zfs.snapshot('clean')
 
