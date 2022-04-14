@@ -162,17 +162,28 @@ def _iterate_options_combinations(variables: dict[str, set[str]]) -> Iterator[di
         yield {option: True for option in options}
 
 
-def _generate_options_combinations(variables: dict[str, set[str]]) -> Iterator[dict[str, bool]]:
+def _generate_options_combinations(
+    variables: dict[str, set[str]],
+    include_options: set[str] | None,
+    exclude_options: set[str],
+) -> Iterator[dict[str, bool]]:
     always_enabled = {'DOCS', 'NLS', 'EXAMPLES', 'IPV6'}
     enabled = variables['OPTIONS_DEFAULT'] | always_enabled
+
+    def is_good_option(k: str, v: bool) -> bool:
+        changed_from_default = v != (k in enabled)
+        includes_passed = include_options is None or k in include_options
+        excludes_passed = k not in exclude_options
+        return changed_from_default and includes_passed and excludes_passed
 
     seen_keys = set()
     for options in _iterate_options_combinations(variables):
         # remove options not changed from default
+        # and handle includes/excludes
         options = {
             k: v
             for k, v in options.items()
-            if v != (k in enabled)
+            if is_good_option(k, v)
         }
 
         if not options:
@@ -243,7 +254,9 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
             if args.options:
                 options_combinations.extend(
                     _generate_options_combinations(
-                        await _get_port_options_vars(defaults.portsdir / port)
+                        await _get_port_options_vars(defaults.portsdir / port),
+                        include_options=set(args.include_options) if args.include_options else None,
+                        exclude_options=set(args.exclude_options) if args.exclude_options else set(),
                     )
                 )
                 logger.debug(f'{len(options_combinations) - 1} additional options combination(s) generated')

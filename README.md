@@ -160,6 +160,9 @@ It is not possible to test all combinations as it would lead to
 - for MULTI group, variants with each option toggled, each single
   option variant and all options enabled variant
 
+It's possible to limit the number of variants with `--excluded-options`
+and `--included-options` options.
+
 ### Rebuilding dependencies
 
 As mentioned **reprise** always uses prebuilt packages for dependencies.
