@@ -104,15 +104,14 @@ class Planner:
 
         return cast(dict[str, Any], manifests[0])
 
-    async def prepare(self, origins_to_test: list[str], origins_to_rebuild: list[str]) -> Plan:
-        queue = []
+    async def prepare(self, origin: str, origins_to_rebuild: set[str]) -> Plan:
         tasks: dict[str, _TaskItem] = {}
-
-        for origin in origins_to_test:
-            queue.append(_QueueItem(port=Port(origin, await self._get_port_default_flavor(origin))))
+        queue = [
+            # the primary port to test
+            _QueueItem(port=Port(origin, await self._get_port_default_flavor(origin)))
+        ]
 
         queue_pos = 0
-
         while queue_pos < len(queue):
             item = queue[queue_pos]
             queue_pos += 1
@@ -137,7 +136,7 @@ class Planner:
                     raise RuntimeError('unexpected package repository inconsistency: no manifest for {item.pkgname}')
                 item.port = Port(manifest['origin'], manifest.get('annotations', {}).get('flavor'))
 
-            want_testing = item.port.origin in origins_to_test
+            want_testing = item.port.origin == origin
             prefer_package = not want_testing and item.port.origin not in origins_to_rebuild
 
             self._logger.debug(f'processing {item.port} aka {item.pkgname}, testing={want_testing}, prefer_package={prefer_package}')

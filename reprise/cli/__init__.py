@@ -159,7 +159,7 @@ class Worker:
 
             await jail.execute('pkg', 'update', '-q')
 
-            plan = await Planner(jail).prepare([jobspec.origin], list(jobspec.origins_to_rebuild))
+            plan = await Planner(jail).prepare(jobspec.origin, jobspec.origins_to_rebuild)
 
             log_path = get_next_file_name(self._workdir.get_logs().get_path())
 
