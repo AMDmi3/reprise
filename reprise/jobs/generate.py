@@ -216,7 +216,14 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
 
     variables = dict(var.split('=', 1) for var in args.vars)
 
-    jailspecs = jail_manager.get_specs(args.jails)
+    if args.jails is None:
+        jails = ['default']
+    elif args.jails == []:
+        jails = ['all']
+    else:
+        jails = args.jails
+
+    jailspecs = jail_manager.get_specs(jails)
 
     for jailspec in jailspecs:
         for port in ports:

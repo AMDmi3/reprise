@@ -65,7 +65,7 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('-f', '--file', type=str, help='path to file with port origin(s) to test (- to read from stdin)')
     group.add_argument('-V', '--vars', metavar='KEY=VALUE', nargs='+', default=[], type=str, help='port variables to set for the build')
     group.add_argument('-O', '--options', action='store_true', help='test port options combinations')
-    group.add_argument('-j', '--jails', type=str, nargs='+', default=['default'], help='jails to test the port in')
+    group.add_argument('-j', '--jails', type=str, nargs='*', help='jails to test the port in')
     group.add_argument('ports', metavar='PORT', nargs='*', default=[], help='port origin(s) to test')
 
     args = parser.parse_args()
