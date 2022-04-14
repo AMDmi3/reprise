@@ -9,6 +9,7 @@
 * Added option combinations testing mode (`-O`)
 * Added support for multiple jails (`-j`)
 * Added automatic jail recreation on spec change
+* Added summaries before and after the run
 
 ## 0.1.2
 

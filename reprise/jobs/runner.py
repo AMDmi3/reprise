@@ -16,8 +16,11 @@
 # along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import functools
 import logging
 import os
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 from reprise.jail.prepare import get_prepared_jail
@@ -54,6 +57,16 @@ def _get_next_file_name(path: Path) -> Path:
     return path / str(max_log + 1)
 
 
+JobStatus = Enum('JobStatus', 'SUCCESS FETCH_FAILED BUILD_FAILED TEST_FAILED CRASHED')
+
+
+@dataclass
+class JobResult:
+    spec: JobSpec
+    status: JobStatus
+    log_path: Path | None = None
+
+
 class JobRunner:
     _logger = logging.getLogger('Job')
     _workdir: Workdir
@@ -66,7 +79,9 @@ class JobRunner:
             self._logger.debug(f'cleaning up jail resource: {resource}')
             await resource.destroy()
 
-    async def run(self, jobspec: JobSpec) -> bool:
+    async def run(self, jobspec: JobSpec) -> JobResult:
+        result = functools.partial(JobResult, spec=jobspec)
+
         self._logger.info(f'job started for {jobspec}')
 
         jail = await get_prepared_jail(self._workdir, jobspec.jailspec)
@@ -125,6 +140,8 @@ class JobRunner:
 
             log_path = _get_next_file_name(self._workdir.get_logs().get_path())
 
+            result = functools.partial(result, log_path=log_path)
+
             with open(log_path, 'x') as log:
                 self._logger.info(f'log file used: {log_path}')
 
@@ -133,7 +150,7 @@ class JobRunner:
                 with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
                     if not await plan.fetch(prison, log=log, fail_fast=jobspec.fail_fast):
                         self._logger.error(f'fetching failed, see log {log_path}')
-                        return False
+                        return result(status=JobStatus.FETCH_FAILED)
 
                 self._logger.debug('setting up the prison for building')
 
@@ -144,7 +161,7 @@ class JobRunner:
 
                 if not await plan.install(prison, log=log, fail_fast=jobspec.fail_fast):
                     self._logger.error(f'installation failed, log file: {log_path}')
-                    return False
+                    return result(status=JobStatus.BUILD_FAILED)
 
                 self._logger.debug('setting up the prison for testing')
 
@@ -155,15 +172,15 @@ class JobRunner:
 
                 if not await plan.test(prison, log=log, fail_fast=jobspec.fail_fast):
                     self._logger.error(f'testing failed, log file: {log_path}')
-                    return False
+                    return result(status=JobStatus.TEST_FAILED)
 
             self._logger.info(f'job succeeded, log file: {log_path}')
 
-            return True
+            return result(status=JobStatus.SUCCESS)
         except RuntimeError:
             self._logger.exception('job failed due to internal error')
         finally:
             self._logger.info('cleaning up')
             await self._cleanup_jail(instance_zfs.get_path())
 
-        return False
+        return result(status=JobStatus.CRASHED)

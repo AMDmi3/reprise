@@ -52,7 +52,7 @@ class JobSpec:
 
         extra_components.extend(f'{k}={v}' for k, v in self.all_variables.items())
 
-        res = f'{self.origin} in {self.jailspec.name}'
+        res = f'{self.origin} on {self.jailspec.name}'
 
         if extra_components:
             res += ' (' + ', '.join(extra_components) + ')'

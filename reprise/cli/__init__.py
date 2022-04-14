@@ -18,10 +18,14 @@
 import argparse
 import asyncio
 import sys
+from typing import Any, Iterable
+
+import termcolor
 
 from reprise.jail.manager import JailManager
+from reprise.jobs import JobSpec
 from reprise.jobs.generate import generate_jobs
-from reprise.jobs.runner import JobRunner
+from reprise.jobs.runner import JobResult, JobRunner, JobStatus
 from reprise.logging_ import setup_logging
 from reprise.prison import NetworkingIsolationMode
 from reprise.workdir import Workdir
@@ -33,7 +37,8 @@ async def parse_arguments() -> argparse.Namespace:
     group = parser.add_argument_group('general')
 
     group.add_argument('-d', '--debug', action='store_true', help='enable debug logging')
-    group.add_argument('-n', '--dry-run', action='store_true', help='don\'t actually build anything')
+    group.add_argument('-n', '--dry-run', action='store_true', help="don't actually build anything")
+    group.add_argument('-q', '--quiet', action='store_true', help="don't print summaries")
     group.add_argument('--fail-fast', action='store_true', help='stop processing after the first failure')
 
     networking_isolation_choices = list(NetworkingIsolationMode.__members__)
@@ -73,6 +78,38 @@ async def parse_arguments() -> argparse.Namespace:
     return args
 
 
+def not_colored(message: str, *args: Any, **kwargs: Any) -> str:
+    return message
+
+
+def print_summary(specs: Iterable[JobSpec]) -> None:
+    print('Job summary:')
+    for spec in specs:
+        print(f' * {spec}')
+
+
+def print_results(results: Iterable[JobResult]) -> None:
+    colored = termcolor.colored if sys.stdout.isatty() else not_colored
+
+    print('Job results:')
+    for result in results:
+        if result.status == JobStatus.SUCCESS:
+            status = colored('     SUCCESS', 'green')  # type: ignore
+        elif result.status == JobStatus.FETCH_FAILED:
+            status = colored('FETCH FAILED', 'red')  # type: ignore
+        elif result.status == JobStatus.BUILD_FAILED:
+            status = colored('BUILD FAILED', 'red')  # type: ignore
+        elif result.status == JobStatus.TEST_FAILED:
+            status = colored(' TEST FAILED', 'yellow')  # type: ignore
+        elif result.status == JobStatus.CRASHED:
+            status = colored('     CRASHED', 'magenta')  # type: ignore
+        else:
+            status = colored('     UNKNOWN', 'magenta')  # type: ignore
+
+        log_message = ', log: ' + colored(result.log_path, 'cyan') if result.log_path else ''  # type: ignore
+        print(f'{status} {result.spec}{log_message}')
+
+
 async def amain() -> None:
     args = await parse_arguments()
 
@@ -83,8 +120,11 @@ async def amain() -> None:
     jobspecs = [job async for job in generate_jobs(args, jail_manager)]
 
     if not jobspecs:
-        print('FATAL: nothing to do')
+        print('nothing to do')
         sys.exit(1)
+
+    if not args.quiet:
+        print_summary(jobspecs)
 
     if args.dry_run:
         sys.exit(0)
@@ -92,9 +132,12 @@ async def amain() -> None:
     workdir = await Workdir.initialize()
     runner = JobRunner(workdir=workdir)
 
-    success = True
-    for jobspec in jobspecs:
-        success = await runner.run(jobspec) and success
+    results = [await runner.run(spec) for spec in jobspecs]
+
+    if not args.quiet:
+        print_results(results)
+
+    success = all(result.status == JobStatus.SUCCESS for result in results)
 
     sys.exit(0 if success else 1)
 
