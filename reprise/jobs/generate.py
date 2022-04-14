@@ -31,7 +31,7 @@ from reprise.jobs import JobSpec
 _FALLBACK_PORTSDIR = '/usr/ports'
 
 
-_USE_JAILS = ['13-amd64']
+_DEFAULT_JAILS = ['13-amd64']
 
 
 @dataclass
@@ -218,7 +218,9 @@ async def generate_jobs(args: argparse.Namespace) -> AsyncGenerator[Any, JobSpec
 
     variables = dict(var.split('=', 1) for var in args.vars)
 
-    for jailname in _USE_JAILS:
+    jails = args.jails or _DEFAULT_JAILS
+
+    for jailname in jails:
         for port in ports:
             options_combinations: list[dict[str, bool]] = [{}]
 
