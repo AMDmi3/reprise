@@ -34,6 +34,7 @@ class JobSpec:
     networking_isolation_test: NetworkingIsolationMode
     variables: dict[str, str]
     options: dict[str, bool]
+    do_test: bool
 
     @property
     def all_variables(self) -> dict[str, str]:

@@ -282,4 +282,5 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
                     networking_isolation_test=NetworkingIsolationMode[args.networking_isolation_test],
                     variables=variables,
                     options=options,
+                    do_test=not args.no_test,
                 )

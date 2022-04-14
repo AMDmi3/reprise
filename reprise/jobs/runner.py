@@ -164,14 +164,15 @@ class JobRunner:
 
                 self._logger.debug('setting up the prison for testing')
 
-                await prison.destroy()  # XXX: implement and use modification of running prison
-                prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_test, hostname='reprise_nonet')
+                if jobspec.do_test:
+                    await prison.destroy()  # XXX: implement and use modification of running prison
+                    prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_test, hostname='reprise_nonet')
 
-                self._logger.info('testing')
+                    self._logger.info('testing')
 
-                if not await plan.test(prison, log=log, fail_fast=jobspec.fail_fast):
-                    self._logger.error(f'testing failed, log file: {log_path}')
-                    return result(status=JobStatus.TEST_FAILED)
+                    if not await plan.test(prison, log=log, fail_fast=jobspec.fail_fast):
+                        self._logger.error(f'testing failed, log file: {log_path}')
+                        return result(status=JobStatus.TEST_FAILED)
 
             self._logger.info(f'job succeeded, log file: {log_path}')
 
