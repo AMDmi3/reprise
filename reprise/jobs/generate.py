@@ -25,13 +25,11 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Iterator
 
 from reprise.execute import execute
-from reprise.jail import NetworkingIsolationMode
+from reprise.jail import JailManager
 from reprise.jobs import JobSpec
+from reprise.prison import NetworkingIsolationMode
 
 _FALLBACK_PORTSDIR = '/usr/ports'
-
-
-_DEFAULT_JAILS = ['13-amd64']
 
 
 @dataclass
@@ -218,9 +216,9 @@ async def generate_jobs(args: argparse.Namespace) -> AsyncGenerator[Any, JobSpec
 
     variables = dict(var.split('=', 1) for var in args.vars)
 
-    jails = args.jails or _DEFAULT_JAILS
+    jailspecs = JailManager().get_specs(args.jails)
 
-    for jailname in jails:
+    for jailspec in jailspecs:
         for port in ports:
             options_combinations: list[dict[str, bool]] = [{}]
 
@@ -238,7 +236,7 @@ async def generate_jobs(args: argparse.Namespace) -> AsyncGenerator[Any, JobSpec
                     origin=port,
                     portsdir=defaults.portsdir,
                     distdir=defaults.distdir,
-                    jailname=jailname,
+                    jailspec=jailspec,
                     origins_to_rebuild=rebuild,
                     fail_fast=args.fail_fast,
                     networking_isolation_build=NetworkingIsolationMode[args.networking_isolation_build],

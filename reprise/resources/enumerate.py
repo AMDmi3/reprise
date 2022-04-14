@@ -21,8 +21,8 @@ from pathlib import Path
 
 from reprise.commands import JLS_CMD, MOUNT_CMD
 from reprise.execute import execute
-from reprise.jail import Jail
 from reprise.mount import Mountpoint
+from reprise.prison import Prison
 from reprise.resources import Resource
 from reprise.zfs import ZFS
 
@@ -56,7 +56,7 @@ async def enumerate_jails(prefix: Path) -> list[Resource]:
         path = Path(jail_info['path'])
 
         if path.is_relative_to(prefix):
-            res.append(Jail(jid, path))
+            res.append(Prison(jid, path))
 
     return sorted(res, key=lambda res: res.get_path(), reverse=True)
 

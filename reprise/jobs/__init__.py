@@ -18,7 +18,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from reprise.jail import NetworkingIsolationMode
+from reprise.jail import JailSpec
+from reprise.prison import NetworkingIsolationMode
 
 
 @dataclass
@@ -26,7 +27,7 @@ class JobSpec:
     origin: str
     portsdir: Path
     distdir: Path
-    jailname: str
+    jailspec: JailSpec
     origins_to_rebuild: set[str]
     fail_fast: bool
     networking_isolation_build: NetworkingIsolationMode
@@ -51,7 +52,9 @@ class JobSpec:
 
         extra_components.extend(f'{k}={v}' for k, v in self.all_variables.items())
 
+        res = f'{self.origin} in {self.jailspec.name}'
+
         if extra_components:
-            return f'{self.origin} ({", ".join(extra_components)})'
-        else:
-            return self.origin
+            res += ' (' + ', '.join(extra_components) + ')'
+
+        return res

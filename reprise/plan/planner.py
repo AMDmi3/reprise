@@ -23,9 +23,9 @@ from typing import Any, Optional, cast
 
 from jsonslicer import JsonSlicer
 
-from reprise.jail import Jail
 from reprise.plan import Plan
 from reprise.plan.tasks import PackageTask, PortTask, Task
+from reprise.prison import Prison
 from reprise.types import Port
 
 
@@ -52,9 +52,9 @@ class _PortDepends:
 class Planner:
     _logger = logging.getLogger('Planner')
 
-    _jail: Jail
+    _jail: Prison
 
-    def __init__(self, jail: Jail) -> None:
+    def __init__(self, jail: Prison) -> None:
         self._jail = jail
 
     async def _get_port_depends(self, port: Port) -> _PortDepends:

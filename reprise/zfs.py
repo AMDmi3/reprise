@@ -65,6 +65,9 @@ class ZFS(Resource):
         result = await execute(ZFS_CMD, 'get', '-H', '-p', '-o', 'value', propname, f'{self._dataset}', allow_failure=True)
         return result[0] if result else None
 
+    async def set_property(self, propname: str, propvalue: str) -> None:
+        await execute(ZFS_CMD, 'set', propname + '=' + propvalue, f'{self._dataset}')
+
     async def resolve_mountpoint(self) -> None:
         mountpoint, mounted = await asyncio.gather(
             self.get_property_maybe('mountpoint'),
@@ -82,7 +85,7 @@ class ZFS(Resource):
     async def destroy(self) -> None:
         while True:
             try:
-                await execute(ZFS_CMD, 'destroy', '-r', '-f', f'{self._dataset}')
+                await execute(ZFS_CMD, 'destroy', '-R', '-f', f'{self._dataset}')
                 return
             except RuntimeError as e:
                 logging.error(e)

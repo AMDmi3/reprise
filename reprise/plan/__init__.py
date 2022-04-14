@@ -19,8 +19,8 @@ import asyncio
 import logging
 from typing import TextIO
 
-from reprise.jail import Jail
 from reprise.plan.tasks import Task
+from reprise.prison import Prison
 
 
 class Plan:
@@ -34,7 +34,7 @@ class Plan:
     def add_task(self, task: Task) -> None:
         self._tasks.append(task)
 
-    async def fetch(self, jail: Jail, log: TextIO, jobs: int = 1, fail_fast: bool = False) -> bool:
+    async def fetch(self, jail: Prison, log: TextIO, jobs: int = 1, fail_fast: bool = False) -> bool:
         self._logger.debug('fetch started')
         sem = asyncio.Semaphore(jobs)
         success = True
@@ -51,7 +51,7 @@ class Plan:
 
         return success
 
-    async def install(self, jail: Jail, log: TextIO, fail_fast: bool = False) -> bool:
+    async def install(self, jail: Prison, log: TextIO, fail_fast: bool = False) -> bool:
         self._logger.debug('install started')
 
         # no parallelization(
@@ -64,7 +64,7 @@ class Plan:
 
         return success
 
-    async def test(self, jail: Jail, log: TextIO, jobs: int = 1, fail_fast: bool = False) -> bool:
+    async def test(self, jail: Prison, log: TextIO, jobs: int = 1, fail_fast: bool = False) -> bool:
         self._logger.debug('testing started')
         sem = asyncio.Semaphore(jobs)
         success = True

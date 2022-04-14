@@ -22,24 +22,16 @@ import os
 import sys
 from pathlib import Path
 
-from reprise.jail import NetworkingIsolationMode, start_jail
-from reprise.jail.populate import JailSpec, populate_jail
+from reprise.jail import get_prepared_jail
 from reprise.jobs import JobSpec
 from reprise.jobs.generate import generate_jobs
 from reprise.lock import file_lock
 from reprise.logging_ import setup_logging
 from reprise.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
 from reprise.plan.planner import Planner
+from reprise.prison import NetworkingIsolationMode, start_prison
 from reprise.resources.enumerate import enumerate_resources
 from reprise.workdir import Workdir
-from reprise.zfs import ZFS
-
-_JAIL_SPECS = {
-    '12-i386': JailSpec(version='12.3-RELEASE', architecture='i386'),
-    '12-amd64': JailSpec(version='12.3-RELEASE', architecture='amd64'),
-    '13-i386': JailSpec(version='13.0-RELEASE', architecture='i386'),
-    '13-amd64': JailSpec(version='13.0-RELEASE', architecture='amd64'),
-}
 
 
 def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
@@ -73,27 +65,6 @@ class Worker:
     def __init__(self, workdir: Workdir) -> None:
         self._workdir = workdir
 
-    async def _get_prepared_jail(self, name: str) -> ZFS:
-        jail = self._workdir.get_jail_master(name)
-        spec = _JAIL_SPECS[name]
-
-        if await jail.exists() and not (jail.get_path() / 'usr').exists():
-            self._logger.debug(f'jail {name} is incomplete, destroying')
-            await jail.destroy()
-
-        if not await jail.exists():
-            self._logger.debug(f'creating jail {name}')
-            await jail.create(parents=True)
-
-            self._logger.debug(f'populating jail {name}')
-            await populate_jail(spec, jail.get_path())
-
-            await jail.snapshot('clean')
-
-        self._logger.debug(f'jail {name} is ready')
-
-        return jail
-
     async def _cleanup_jail(self, path: Path) -> None:
         for resource in await enumerate_resources(path):
             self._logger.debug(f'cleaning up jail resource: {resource}')
@@ -102,14 +73,9 @@ class Worker:
     async def run(self, jobspec: JobSpec) -> bool:
         self._logger.info(f'job started for {jobspec}')
 
-        with file_lock(self._workdir.root.get_path() / 'jails.lock'):
-            master_zfs = await self._get_prepared_jail(jobspec.jailname)
-            packages_zfs = self._workdir.get_jail_packages(jobspec.jailname)
+        jail = await get_prepared_jail(self._workdir, jobspec.jailspec)
 
-            if not await packages_zfs.exists():
-                await packages_zfs.create(parents=True)
-
-        instance_name = f'{jobspec.jailname}-{os.getpid()}'
+        instance_name = f'{jobspec.jailspec.name}-{os.getpid()}'
 
         instance_zfs = self._workdir.get_jail_instance(instance_name)
 
@@ -117,7 +83,7 @@ class Worker:
 
         try:
             self._logger.debug(f'cloning instance {instance_name}')
-            await instance_zfs.clone_from(master_zfs, 'clean', parents=True)
+            await instance_zfs.clone_from(jail.jail_zfs, 'clean', parents=True)
 
             self._logger.debug('creating directories')
             ports_path = instance_zfs.get_path() / 'usr' / 'ports'
@@ -146,20 +112,20 @@ class Worker:
                 mount_devfs(instance_zfs.get_path() / 'dev'),
                 mount_nullfs(jobspec.portsdir, ports_path),
                 mount_nullfs(jobspec.distdir, distfiles_path, readonly=False),
-                mount_nullfs(packages_zfs.get_path(), packages_path, readonly=False),
+                mount_nullfs(jail.packages_zfs.get_path(), packages_path, readonly=False),
                 mount_tmpfs(work_path),
             )
 
-            self._logger.debug('starting jail')
-            jail = await start_jail(instance_zfs.get_path(), networking=NetworkingIsolationMode.UNRESTRICTED, hostname='reprise')
+            self._logger.debug('starting prison')
+            prison = await start_prison(instance_zfs.get_path(), networking=NetworkingIsolationMode.UNRESTRICTED, hostname='reprise')
 
             self._logger.debug('bootstrapping pkg')
 
-            await jail.execute('pkg', 'bootstrap', '-q', '-y')
+            await prison.execute('pkg', 'bootstrap', '-q', '-y')
 
-            await jail.execute('pkg', 'update', '-q')
+            await prison.execute('pkg', 'update', '-q')
 
-            plan = await Planner(jail).prepare(jobspec.origin, jobspec.origins_to_rebuild)
+            plan = await Planner(prison).prepare(jobspec.origin, jobspec.origins_to_rebuild)
 
             log_path = get_next_file_name(self._workdir.get_logs().get_path())
 
@@ -169,29 +135,29 @@ class Worker:
                 self._logger.info('fetching')
 
                 with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
-                    if not await plan.fetch(jail, log=log, fail_fast=jobspec.fail_fast):
+                    if not await plan.fetch(prison, log=log, fail_fast=jobspec.fail_fast):
                         self._logger.error(f'fetching failed, see log {log_path}')
                         return False
 
-                self._logger.debug('setting up the jail for building')
+                self._logger.debug('setting up the prison for building')
 
-                await jail.destroy()  # XXX: implement and use modification of running jail
-                jail = await start_jail(instance_zfs.get_path(), networking=jobspec.networking_isolation_build, hostname='reprise_nonet')
+                await prison.destroy()  # XXX: implement and use modification of running prison
+                prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_build, hostname='reprise_nonet')
 
                 self._logger.info('installation')
 
-                if not await plan.install(jail, log=log, fail_fast=jobspec.fail_fast):
+                if not await plan.install(prison, log=log, fail_fast=jobspec.fail_fast):
                     self._logger.error(f'installation failed, log file: {log_path}')
                     return False
 
-                self._logger.debug('setting up the jail for testing')
+                self._logger.debug('setting up the prison for testing')
 
-                await jail.destroy()  # XXX: implement and use modification of running jail
-                jail = await start_jail(instance_zfs.get_path(), networking=jobspec.networking_isolation_test, hostname='reprise_nonet')
+                await prison.destroy()  # XXX: implement and use modification of running prison
+                prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_test, hostname='reprise_nonet')
 
                 self._logger.info('testing')
 
-                if not await plan.test(jail, log=log, fail_fast=jobspec.fail_fast):
+                if not await plan.test(prison, log=log, fail_fast=jobspec.fail_fast):
                     self._logger.error(f'testing failed, log file: {log_path}')
                     return False
 
@@ -244,7 +210,7 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('-f', '--file', type=str, help='path to file with port origin(s) to test (- to read from stdin)')
     group.add_argument('-V', '--vars', metavar='KEY=VALUE', nargs='+', default=[], type=str, help='port variables to set for the build')
     group.add_argument('-O', '--options', action='store_true', help='test port options combinations')
-    group.add_argument('-j', '--jails', type=str, nargs='+', help='jails to test the port in')
+    group.add_argument('-j', '--jails', type=str, nargs='+', default=['default'], help='jails to test the port in')
     group.add_argument('ports', metavar='PORT', nargs='*', default=[], help='port origin(s) to test')
 
     args = parser.parse_args()
@@ -260,7 +226,7 @@ async def amain() -> None:
     jobspecs = [job async for job in generate_jobs(args)]
 
     if not jobspecs:
-        print('FATAL: no ports specified')
+        print('FATAL: nothing to do')
         sys.exit(1)
 
     workdir = await Workdir.initialize()
