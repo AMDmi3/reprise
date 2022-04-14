@@ -18,23 +18,26 @@ and other heavy dependencies over and over again.
 ## Features against poudriere
 
 - **Automatic jail management**
-  Jails are created on demand, no preparation steps are needed
-  to run a first build.
+  Jails are automatically created on demand, no preparation steps
+  are needed to run a build.
+- **Automatic port trees management**
+  No need to specify port trees explicitly, ports are tested in
+  their native ports trees.
 - **Any number of simultaneous runs**
-  No `jail is already running` errors, run any number of builds
-  at a time.
-- **Uses prebuilt packages**
+  No `jail is already running` errors, any number of builds at
+  once are possible.
+- **Uses prebuilt packages eagerly**
   By default uses only prebuilt packages for all dependencies.
-- **Convenient adhoc runs**
-  Run without arguments in a port directory to test it in its ports
-  tree.
 - **`make test` support**
   Running upstream unit and integration tests is crucial for providing
   high quality software through the Ports Tree, and this tool allows
   to do it without polluting the host system. It also properly supports
   `TEST_DEPENDS`, even when they create dependency loops.
+- **Support for testing options combinations**
+  It is possible to automatically test a lot of options combinations
+  for a given ports.
 
-## Current drawbacks compared to poudriere
+## Drawbacks compared to poudriere
 
 Most of these will hopefully be solved at some point.
 
@@ -55,38 +58,118 @@ Most of these will hopefully be solved at some point.
 
 ## Requirements
 
-- Python 3.10
-- Python modules: `jsonslicer`
+- Python 3.10+
+- Python modules: `jsonslicer`, `termcolor`
 - ZFS
-- Root permissions
+- Root privileges
+
+## Installation
+
+Install from FreeBSD ports:
+
+```
+cd /usr/ports/ports-mgmt/reprise && make install clean
+```
+
+## Quick start
+
+Just run `reprise` in any port directory.
+
+```shell
+cd /usr/ports/category/port && reprise
+```
+
+It will create a ZFS dataset for itself, create a default jail by
+fetching and extracting a tarball from FreeBSD https and run a test
+of a given port in this jail. Try `-j`/`--jails` to run more jails,
+`-O`/`--options` to test options combinations `-V`/`--vars` to pass
+`make.conf` variables, `-d`/`--debug` for verbose logs and
+`-n`/`--dry-run` to check what's it going to do without actual
+building.
 
 ## Usage
 
+### Specifying ports
+
+Most common patter is to build/test a single port from the current
+directory:
+
 ```shell
-# cd /usr/ports/category/port && reprise
+cd /usr/ports/category/port && reprise
 ```
 
-This command builds and tests the given port in its portstree.
-At the first run, it creates ZFS hierarchy for itself at
-`$ZPOOL/reprise` (currently requires single zpool to be present
-in the system and uses it), and prepares FreeBSD 13.0-RELEASE amd64
-jail by fetching tarballs from FreeBSD https.
-
-You may specify `--portsdir` and a list of ports explicitly:
+You may also specify list of ports (in `category/port` format)
+explicitly, on command line or through a file (one port per line,
+whitespace ignored, #-comments supported). You may want to specify
+path to ports tree as well, otherwise `/usr/ports` will be used.
 
 ```shell
-# reprise --portsdir /usr/ports cat1/port1 cat2/port2
+reprise cat1/port1 cat2/port2                    # from /usr/ports
+reprise -p /path/to/ports cat1/port1 cat2/port2
+cat > portlist <<__END
+cat1/port1
+cat2/port2
+# comments are ignored
+_END
+reprise -f portlist                              # from /usr/ports
+reprise -p /path/to/ports -f portlist
 ```
 
-Additionally, you may specify a list of dependencies which need to
-be rebuilt from ports. These will only be built if actually needed
-for any other port.
+### Specifying jails
+
+Currently, **reprise** uses hardcoded list of FreeBSD versions
+to use for jails, which are the latest releases in the supported
+branches, currently `13.0-RELEASE` and `12.3-RELEASE`. A jail
+is configured for each of these with the native processor architecture.
+On `amd64`, additional pair of `i386` jails is configured.
+Summarizing, on `amd64` you'll have the following jails available:
+
+| Name     | Version      | Arch  | Notes   |
+|----------|--------------|-------|---------|
+| 13-amd64 | 13.0-RELEASE | amd64 | default |
+| 13-i386  | 13.0-RELEASE | i386  |         |
+| 12-amd64 | 12.3-RELEASE | amd64 |         |
+| 12-i386  | 12.3-RELEASE | i386  |         |
+
+You may select jails to use with `-j`/`--jails` argument, specifying
+either jail names or aliases, which include version (`12`, `13`) and arch
+(`i386`, `amd64`) based, `default` for default jail (latest version on
+native arch) and `all` for all jails. By default, `default` jail
+is used. If `-j` with no arguments is specified, `all` jails are used.
+
+Examples:
 
 ```shell
-# cd /usr/ports/category/port && reprise --rebuild category/dependency
+reprise cat1/port1                   # default jail
+reprise -j -- cat1/port1             # all jails
+reprise -j 12-i386 13 -- cat1/port1  # 3 matching jails
 ```
-```shell
-# reprise --portsdir /usr/ports -r cat/dep1 cat/dep2 -- cat/port1 cat/port2
+
+### Option combinations testing
+
+When `-O`/`--options` flag is specified, **reprise** generates
+a bunch of options combinations for each port and builds all of
+these.
+
+It is not possible to test all combinations as it would lead to
+2^n variants to build, so generation is limited to a set of patterns:
+- variant with each free option toggled
+- for each GROUP, variant with each option toggled, and variants with
+  all options in the group enabled and disabled
+- each possible variant for for each SINGLE and RADIO group
+- for MULTI group, variants with each option toggled, each single
+  option variant and all options enabled variant
+
+### Rebuilding dependencies
+
+As mentioned **reprise** always uses prebuilt packages for dependencies.
+In the case such package does not exist, a dependency is built in
+the same jail. You may specify a list of ports to forcibly rebuild
+the same way, for example when you want to test consumers of a
+specific port.
+
+```sh
+reprise -r cat1/port-to-rebuild1 cat2/port2 -- target/port
 ```
 
 Note that you need `--` to separate lists of ports.
