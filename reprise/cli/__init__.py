@@ -106,7 +106,7 @@ def print_results(results: Iterable[JobResult]) -> None:
         else:
             status = colored('     UNKNOWN', 'magenta')  # type: ignore
 
-        log_message = ', log: ' + colored(result.log_path, 'cyan') if result.log_path else ''  # type: ignore
+        log_message = ', log: ' + colored(str(result.log_path), 'cyan') if result.log_path else ''  # type: ignore
         print(f'{status} {result.spec}{log_message}')
 
 
