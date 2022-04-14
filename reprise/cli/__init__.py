@@ -18,7 +18,7 @@
 import argparse
 import asyncio
 import sys
-from typing import Any, Iterable
+from typing import Any, Collection
 
 import termcolor
 
@@ -82,19 +82,24 @@ def not_colored(message: str, *args: Any, **kwargs: Any) -> str:
     return message
 
 
-def print_summary(specs: Iterable[JobSpec]) -> None:
+def print_summary(specs: Collection[JobSpec]) -> None:
     print('Job summary:', file=sys.stderr)
     for spec in specs:
         print(f' * {spec}', file=sys.stderr)
+    print(f'{len(specs)} job(s) total', file=sys.stderr)
 
 
-def print_results(results: Iterable[JobResult]) -> None:
+def print_results(results: Collection[JobResult]) -> None:
     colored = termcolor.colored if sys.stdout.isatty() else not_colored
+
+    num_successes = 0
 
     print('Job results:')
     for result in results:
+        # here and below, a bunch of bogus `Cannot call function of unknown type` errors
         if result.status == JobStatus.SUCCESS:
             status = colored('     SUCCESS', 'green')  # type: ignore
+            num_successes += 1
         elif result.status == JobStatus.FETCH_FAILED:
             status = colored('FETCH FAILED', 'red')  # type: ignore
         elif result.status == JobStatus.BUILD_FAILED:
@@ -108,6 +113,10 @@ def print_results(results: Iterable[JobResult]) -> None:
 
         log_message = ', log: ' + colored(str(result.log_path), 'cyan') if result.log_path else ''  # type: ignore
         print(f'{status} {result.spec}{log_message}')
+
+    success = num_successes == len(results)
+
+    print(colored(f'{num_successes}/{len(results)}', 'green' if success else 'red'), 'successful jobs', file=sys.stderr)  # type: ignore
 
 
 async def amain() -> None:
