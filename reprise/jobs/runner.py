@@ -111,7 +111,6 @@ class JobRunner:
 
             self._logger.debug('installing make.conf')
             with open(instance_zfs.get_path() / 'etc' / 'make.conf', 'w') as fd:
-                fd.write('BUILD_ALL_PYTHON_FLAVORS=yes\n')
                 for k, v in jobspec.all_variables.items():
                     fd.write(f'{k}={v}\n')
 
