@@ -105,75 +105,85 @@ def _iterate_options_combinations(variables: dict[str, set[str]]) -> Iterator[di
     always_enabled = {'DOCS', 'NLS', 'EXAMPLES', 'IPV6'}
     enabled = variables['OPTIONS_DEFAULT'] | always_enabled
 
-    for option in variables['OPTIONS_DEFINE']:
-        target_state = option not in enabled
-        logger.debug(f'considering variant with option {option} toggled to {"ON" if target_state else "OFF"}')
-        yield {option: target_state}
+    # toggle each plain option
+    for option in sorted(variables['OPTIONS_DEFINE']):
+        logger.debug(f'considering variant with option {option} toggled')
+        yield from ({option: True}, {option: False})
 
+    # group options are no different from single, toggle each
+    # in addition, check all-enabled and all-disabled variants
     for group in variables['OPTIONS_GROUP']:
         options = variables[f'OPTIONS_GROUP_{group}']
-        default_options = options & enabled
 
-        for option in variables[f'OPTIONS_GROUP_{group}']:
-            target_state = option not in enabled
-            logger.debug(f'considering variant with group {group} option {option} toggled to {"ON" if target_state else "OFF"}')
-            yield {option: target_state}
+        for option in sorted(options):
+            logger.debug(f'considering variant with group {group} option {option} toggled')
+            yield from ({option: True}, {option: False})
 
-        if default_options != options:
-            logger.debug(f'considering variant with group {group} fully enabled')
-            yield {option: True for option in options}
+        logger.debug(f'considering variant with group {group} fully enabled')
+        yield {option: True for option in options}
 
-        if default_options:
-            logger.debug(f'considering variant with group {group} fully disabled')
-            yield {option: False for option in options}
+        logger.debug(f'considering variant with group {group} fully disabled')
+        yield {option: False for option in options}
 
+    # check each choice of SINGLE
     for single in variables['OPTIONS_SINGLE']:
-        choices = variables[f'OPTIONS_SINGLE_{single}']
-        default_choices = choices & enabled
+        options = variables[f'OPTIONS_SINGLE_{single}']
 
-        if len(default_choices) != 1:
-            logger.error(f'unexpected number of default choices for single {single}, ignoring')
-            continue
+        for option in sorted(options):
+            logger.debug(f'considering variant with single {single} set to to {option}')
+            yield {other: False for other in options} | {option: True}
 
-        default_choice = next(iter(default_choices))
-
-        for choice in choices - default_choices:
-            logger.debug(f'considering variant with single {single} changed from {default_choice} to {choice}')
-            yield {choice: True, default_choice: False}
-
+    # RADIO is the same as single with additional variant of none
     for radio in variables['OPTIONS_RADIO']:
-        choices = variables[f'OPTIONS_RADIO_{radio}']
-        default_choices = choices & enabled
+        options = variables[f'OPTIONS_RADIO_{radio}']
 
-        if len(default_choices) == 0:
-            for choice in choices:
-                logger.debug(f'considering variant with radio {radio} set to {choice}')
-                yield {choice: True}
-        elif len(default_choices) == 1:
-            default_choice = next(iter(default_choices))
-            for choice in choices:
-                if choice == default_choice:
-                    logger.debug(f'considering variant with radio {radio} reset from {default_choice}')
-                    yield {default_choice: False}
-                else:
-                    logger.debug(f'considering variant with radio {radio} changed from {default_choice} to {choice}')
-                    yield {choice: True, default_choice: False}
-        else:
-            logger.error(f'multiple default choices for radio {radio}, ignoring')
+        for option in sorted(options):
+            logger.debug(f'considering variant with radio {radio} set to {option}')
+            yield {other: False for other in options} | ({option: True} if option else {})
+
+        logger.debug(f'considering variant with radio {radio} fully disabled')
+        yield {other: False for other in options}
+
+    # MULTI is the mix of GROUP without all-off variant and SINGLE
+    for multi in variables['OPTIONS_MULTI']:
+        options = variables[f'OPTIONS_MULTI_{multi}']
+        default = options & enabled
+
+        for option in sorted(options):
+            # be sure not to produce combination with no options enabled by toggling
+            if {option} != default:
+                logger.debug(f'considering variant with multi {multi} option {option} toggled')
+                yield from ({option: True}, {option: False})
+
+            logger.debug(f'considering variant with multi {multi} set to {option}')
+            yield {other: False for other in options} | {option: True}
+
+        logger.debug(f'considering variant with multi {multi} fully enabled')
+        yield {option: True for option in options}
+
+
+def _generate_options_combinations(variables: dict[str, set[str]]) -> Iterator[dict[str, bool]]:
+    always_enabled = {'DOCS', 'NLS', 'EXAMPLES', 'IPV6'}
+    enabled = variables['OPTIONS_DEFAULT'] | always_enabled
+
+    seen_keys = set()
+    for options in _iterate_options_combinations(variables):
+        # remove options not changed from default
+        options = {
+            k: v
+            for k, v in options.items()
+            if v != (k in enabled)
+        }
+
+        if not options:
             continue
 
-    for multi in variables['OPTIONS_MULTI']:
-        choices = set(variables[f'OPTIONS_MULTI_{multi}'])
-        default_choices = choices & enabled
+        # unicalize option sets
+        key = ','.join(f'{k}={v}' for k, v in sorted(options.items()))
 
-        for choice in choices:
-            if {choice} != default_choices:
-                logger.debug(f'considering variant with multi {multi} set to (only) {choice}')
-                yield {default_choice: False for default_choice in default_choices} | {choice: True}
-
-        if default_choices != choices:
-            logger.debug(f'considering variant with multi {multi} fully enabled')
-            yield {choice: True for choice in choices}
+        if key not in seen_keys:
+            seen_keys.add(key)
+            yield options
 
 
 async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> AsyncGenerator[Any, JobSpec]:
@@ -232,7 +242,7 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
             # XXX: to be correct, options should be generated inside a jail
             if args.options:
                 options_combinations.extend(
-                    _iterate_options_combinations(
+                    _generate_options_combinations(
                         await _get_port_options_vars(defaults.portsdir / port)
                     )
                 )
