@@ -42,12 +42,14 @@ class JailManager:
         # in order preferred for default
         versions = ['13.0-RELEASE', '12.3-RELEASE']
 
-        archs = []
+        machine = platform.machine()
 
-        if platform.machine() != 'i386':
-            archs.append('amd64')
-
-        archs.append('i386')
+        if machine == 'amd64':
+            archs = ['amd64', 'i386']
+        else:
+            # XXX: this it not tested on different archs, may it need more
+            # complex handling with aarch64 vs. arm.aarch64?
+            archs = [machine]
 
         for version in versions:
             for arch in archs:
