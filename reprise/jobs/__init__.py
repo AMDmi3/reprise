@@ -32,14 +32,22 @@ class JobSpec:
     networking_isolation_build: NetworkingIsolationMode
     networking_isolation_test: NetworkingIsolationMode
     variables: dict[str, str]
+    options: dict[str, bool]
 
     @property
     def all_variables(self) -> dict[str, str]:
-        # env vars generated for options will be added here later
-        return self.variables
+        extra_vars = {}
+
+        if (options := [k for k, v in self.options.items() if v]):
+            extra_vars['WITH'] = ' '.join(options)
+
+        if (options := [k for k, v in self.options.items() if not v]):
+            extra_vars['WITHOUT'] = ' '.join(options)
+
+        return self.variables | extra_vars
 
     def __repr__(self) -> str:
-        extra_components = []
+        extra_components: list[str] = []
 
         extra_components.extend(f'{k}={v}' for k, v in self.all_variables.items())
 
