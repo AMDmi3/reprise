@@ -120,7 +120,7 @@ def print_results(results: Collection[JobResult]) -> None:
 
     success = num_successes == len(results)
 
-    print(colored(f'{num_successes}/{len(results)}', 'green' if success else 'red'), 'successful jobs', file=sys.stderr)  # type: ignore
+    print(colored(f'{num_successes}/{len(results)}', 'green' if success else 'red'), 'successful jobs')  # type: ignore
 
 
 async def amain() -> None:
