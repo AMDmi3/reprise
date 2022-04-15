@@ -81,6 +81,10 @@ class PortTask(Task):
     async def fetch(self, prison: Prison, log: TextIO) -> bool:
         self._logger.debug(f'started fetching distfiles for port {self._port}')
 
+        print('================================================================================', file=log)
+        print('= Fetch phase ==================================================================', file=log)
+        print('================================================================================', file=log, flush=True)
+
         returncode = await prison.execute_by_line(
             'env',
             'BATCH=1',
@@ -102,6 +106,14 @@ class PortTask(Task):
     async def install(self, prison: Prison, log: TextIO) -> bool:
         self._logger.debug(f'started installation for port {self._port}')
 
+        print('================================================================================', file=log)
+        print('= Listing installed packages before build ======================================', file=log)
+        print('================================================================================', file=log, flush=True)
+        await prison.execute_by_line('pkg', 'info', '-q', log=log)
+
+        print('================================================================================', file=log)
+        print('= Build phase ==================================================================', file=log)
+        print('================================================================================', file=log, flush=True)
         returncode = await prison.execute_by_line(
             'env',
             'BATCH=1',
@@ -124,6 +136,10 @@ class PortTask(Task):
             return True
 
         self._logger.debug(f'started testing for port {self._port}')
+
+        print('================================================================================', file=log)
+        print('= Testing phase ================================================================', file=log)
+        print('================================================================================', file=log, flush=True)
 
         returncode = await prison.execute_by_line(
             'env',
