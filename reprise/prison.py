@@ -17,6 +17,7 @@
 
 import asyncio
 import logging
+import os
 from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
@@ -43,12 +44,33 @@ class Prison(Resource):
             program, *args, **kwargs
         )
 
-    async def execute_by_line(self, program: str, *args: Any, log: TextIO | None) -> int:
-        logging.getLogger('Execute').debug('executing ' + ' '.join([program] + list(args)))
-        proc = await asyncio.create_subprocess_exec(
-            JEXEC_CMD, '-l', str(self._jid),
-            '/usr/bin/env', '-L0',  # XXX: may be changed to -L- when 12.x is gone
+    async def execute_by_line(self, program: str, *args: Any, log: TextIO | None, user: str | None = None) -> int:
+        user_args = ('-u', user) if user is not None else ()
+
+        full_args = [
+            # jexec
+            JEXEC_CMD,
+            *user_args,
+            str(self._jid),
+
+            # env
+            '/usr/bin/env',
+            # the following argument clears all environment, leaving only stuff provided by the login class
+            # so we need to explicitly define common vars like HOME below;
+            '-i',
+            '-L0',  # XXX: may be changed to -L- when 12.x is gone
+            'HOME=/nonexistent',
+            'SHELL=/bin/sh',
+            *((f'TERM={term}',) if (term := os.environ.get('term')) else ()),
+            f'USER={user if user else "root"}',
+
+            # program
             program, *args,
+        ]
+
+        logging.getLogger('Execute').debug('executing ' + ' '.join(full_args))
+        proc = await asyncio.create_subprocess_exec(
+            *full_args,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=log,
             stderr=log,

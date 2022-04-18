@@ -75,6 +75,7 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('--exclude-default-options', action='store_true', help="don't build default options with -O")
     group.add_argument('-j', '--jails', type=str, nargs='*', help='jails to test the port in')
     group.add_argument('-T', '--no-test', action='store_true', help='skip testing')
+    group.add_argument('--build-as-root', action='store_true', help='do not drop privileges for building and testing')
     group.add_argument('ports', metavar='PORT', nargs='*', default=[], help='port origin(s) to test')
 
     args = parser.parse_args()

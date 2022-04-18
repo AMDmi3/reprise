@@ -19,6 +19,7 @@ import asyncio
 import functools
 import logging
 import os
+import shutil
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -126,6 +127,9 @@ class JobRunner:
                 mount_tmpfs(work_path),
             )
 
+            if jobspec.build_as_nobody:
+                shutil.chown(work_path, 'nobody', 'nobody')
+
             self._logger.debug('starting prison')
             prison = await start_prison(instance_zfs.get_path(), networking=NetworkingIsolationMode.UNRESTRICTED, hostname='reprise')
 
@@ -135,7 +139,11 @@ class JobRunner:
 
             await prison.execute('pkg', 'update', '-q')
 
-            plan = await Planner(prison).prepare(jobspec.origin, jobspec.origins_to_rebuild)
+            plan = await Planner(prison).prepare(
+                jobspec.origin,
+                jobspec.origins_to_rebuild,
+                jobspec.build_as_nobody,
+            )
 
             log_path = _get_next_file_name(self._workdir.get_logs().get_path())
 

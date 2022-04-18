@@ -67,10 +67,12 @@ class PackageTask(Task):
 class PortTask(Task):
     _port: Port
     _do_test: bool
+    _build_as_nobody: bool
 
-    def __init__(self, port: Port, do_test: bool = False) -> None:
+    def __init__(self, port: Port, do_test: bool, build_as_nobody: bool) -> None:
         self._port = port
         self._do_test = do_test
+        self._build_as_nobody = build_as_nobody
 
     def __repr__(self) -> str:
         return f'PortTask({self._port}, test={self._do_test})'
@@ -112,7 +114,7 @@ class PortTask(Task):
         await prison.execute_by_line('pkg', 'info', '-q', log=log)
 
         print('================================================================================', file=log)
-        print('= Build phase ==================================================================', file=log)
+        print('= Build package phase ==========================================================', file=log)
         print('================================================================================', file=log, flush=True)
         returncode = await prison.execute_by_line(
             'env',
@@ -123,7 +125,31 @@ class PortTask(Task):
             'USE_PACKAGE_DEPENDS_ONLY=1',
             '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
-            'make', '-C', f'/usr/ports/{self._port.origin}', 'install',  # XXX: clean if not do_test?
+            'make', '-C', f'/usr/ports/{self._port.origin}', 'package',
+            log=log,
+            user='nobody' if self._build_as_nobody else None,
+        )
+
+        self._logger.debug(f'finished packaging for port {self._port} with code {returncode}')
+
+        if returncode != 0:
+            return False
+
+        print('================================================================================', file=log)
+        print('= Install package phase ========================================================', file=log)
+        print('================================================================================', file=log, flush=True)
+
+        returncode = await prison.execute_by_line(
+            'env',
+            'BATCH=1',
+            'DISTDIR=/distfiles',
+            'WRKDIRPREFIX=/work',
+            # XXX: PKG_ADD is specifically allowed here for install-package to work
+            # in fact, we should call it explicitly on WRKDIR_PKGFILE
+            'USE_PACKAGE_DEPENDS_ONLY=1',
+            '_LICENSE_STATUS=accepted',
+            *self._flavorenv(),
+            'make', '-C', f'/usr/ports/{self._port.origin}', 'install-package',
             log=log,
         )
 
@@ -152,6 +178,7 @@ class PortTask(Task):
             *self._flavorenv(),
             'make', '-C', f'/usr/ports/{self._port.origin}', 'test',
             log=log,
+            user='nobody' if self._build_as_nobody else None,
         )
 
         self._logger.debug(f'finished testing for port {self._port} with code {returncode}')

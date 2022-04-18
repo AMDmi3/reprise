@@ -35,6 +35,7 @@ class JobSpec:
     variables: dict[str, str]
     options: dict[str, bool]
     do_test: bool
+    build_as_nobody: bool
 
     @property
     def all_variables(self) -> dict[str, str]:
