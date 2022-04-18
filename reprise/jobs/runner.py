@@ -131,7 +131,7 @@ class JobRunner:
                 shutil.chown(work_path, 'nobody', 'nobody')
 
             self._logger.debug('starting prison')
-            prison = await start_prison(instance_zfs.get_path(), networking=NetworkingIsolationMode.UNRESTRICTED, hostname='reprise')
+            prison = await start_prison(instance_zfs.get_path(), networking=NetworkingIsolationMode.UNRESTRICTED, hostname='reprise-fetcher')
 
             self._logger.debug('bootstrapping pkg')
 
@@ -162,7 +162,7 @@ class JobRunner:
                 self._logger.debug('setting up the prison for building')
 
                 await prison.destroy()  # XXX: implement and use modification of running prison
-                prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_build, hostname='reprise_nonet')
+                prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_build, hostname='reprise-builder')
 
                 self._logger.info('installation')
 
@@ -174,7 +174,7 @@ class JobRunner:
 
                 if jobspec.do_test:
                     await prison.destroy()  # XXX: implement and use modification of running prison
-                    prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_test, hostname='reprise_nonet')
+                    prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_test, hostname='reprise-tester')
 
                     self._logger.info('testing')
 
