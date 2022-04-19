@@ -32,6 +32,8 @@ class Workdir:
 
     @staticmethod
     async def initialize(dataset: Path | None = None) -> 'Workdir':
+        logger = logging.getLogger('Workdir')
+
         if dataset is None:
             pools = await get_zfs_pools()
 
@@ -42,11 +44,13 @@ class Workdir:
 
             dataset = Path(pools[0]) / _REPRISE_HOME
 
+        logger.debug(f'using root dataset {dataset}')
+
         root = ZFS(dataset)
 
         if not await root.exists():
             try:
-                logging.debug(f'creating main dataset at {dataset}')
+                logger.debug('creating root dataset')
                 await root.create()
             except RuntimeError as e:
                 raise AutocreateFailure('cannot create root dataset') from e
@@ -66,6 +70,7 @@ class Workdir:
 
         for filesystem in required_filesystems:
             if not await filesystem.exists():
+                logger.debug(f'creating missing child dataset {filesystem}')
                 await filesystem.create()
 
         return workdir

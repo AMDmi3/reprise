@@ -35,17 +35,11 @@ class ElapsedFormatter(logging.Formatter):
 
     def formatMessage(self, record: logging.LogRecord) -> str:  # noqa
         elapsed = _format_seconds(record.created - self._start_time)
-        return f'[{elapsed}] {record.getMessage()}'
-
-
-class DebugElapsedFormatter(ElapsedFormatter):
-    def formatMessage(self, record: logging.LogRecord) -> str:  # noqa
-        elapsed = _format_seconds(record.created - self._start_time)
-        return f'[{elapsed}] {record.name:8} {record.getMessage()}'
+        return f'[{elapsed}][{record.name}]: {record.getMessage()}'
 
 
 def setup_logging(debug: bool) -> None:
     handler = logging.StreamHandler()
-    handler.setFormatter(DebugElapsedFormatter() if debug else ElapsedFormatter())
+    handler.setFormatter(ElapsedFormatter())
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(logging.DEBUG if debug else logging.INFO)

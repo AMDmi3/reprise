@@ -58,7 +58,7 @@ def log_execute_time_statistics() -> None:
 
 
 async def execute(program: str, *args: str, allow_failure: bool = False, cwd: Path | None = None) -> list[str]:
-    _logger.debug('executing ' + ' '.join([program] + list(args)))
+    _logger.debug(' '.join([program] + list(args)))
 
     start = time.monotonic()
 

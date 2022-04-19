@@ -120,9 +120,9 @@ class Repository:
     def __init__(self, release: int, arch: str, path: Path, url: str, system: str, branch: str) -> None:
         abi = f'{system}:{release}:{arch}'
 
-        self._logger = logging.getLogger(f'{abi}/{branch}')
+        self._logger = logging.getLogger(f'Repository {abi}/{branch}')
 
-        self._logger.debug('initializing repository')
+        self._logger.debug('initializing')
 
         self._url = url
         self._abi = abi
@@ -137,11 +137,11 @@ class Repository:
         self._metadata = None
 
         try:
-            self._logger.debug('loading repository metadata')
+            self._logger.debug('loading metadata')
             with open(self._path / 'packagesite.pickle', 'rb') as fd:
                 self._metadata = pickle.load(fd)
         except (FileNotFoundError, pickle.UnpicklingError, BadRepositoryMetadataVersion) as e:
-            self._logger.error(f'loading repository metadata failed ({e}), forced update required')
+            self._logger.error(f'loading metadata failed ({e}), forced update required')
 
     def _get_base_url(self) -> str:
         return f'{self._url}/{self._abi}/{self._branch}'
@@ -164,7 +164,7 @@ class Repository:
         packagesite_yaml_path = self._path / 'packagesite.yaml'
         packagesite_pickle_path = self._path / 'packagesite.pickle'
 
-        self._logger.debug('updating repository metadata')
+        self._logger.debug('updating metadata')
 
         async with aiohttp.ClientSession(raise_for_status=True) as session:
             if self._metadata and not force:
@@ -182,12 +182,12 @@ class Repository:
 
                 etag = response.headers.get('etag', '')
 
-        self._logger.debug('extracting repository metadata')
+        self._logger.debug('extracting metadata')
         await execute('tar', '-x', '-f', 'packagesite.pkg', 'packagesite.yaml', cwd=self._path)
 
         packagesite_pkg_path.unlink()
 
-        self._logger.debug('parsing repository metadata')
+        self._logger.debug('parsing metadata')
         with open(packagesite_yaml_path) as fd:
             packages = []
             for item in JsonSlicer(fd, (), yajl_allow_multiple_values=True):
@@ -208,7 +208,7 @@ class Repository:
 
         packagesite_yaml_path.unlink()
 
-        self._logger.debug('saving repository metadata')
+        self._logger.debug('saving metadata')
         with open(packagesite_pickle_path.with_suffix('.new'), 'wb') as fd:
             pickle.dump(self._metadata, fd)
             fd.flush()
@@ -281,7 +281,7 @@ RepositoryUpdateMode = Enum('RepositoryUpdateMode', 'FORCE AUTO DISABLE')
 
 
 class RepositoryManager:
-    _logger = logging.getLogger('RepoMgr')
+    _logger = logging.getLogger('RepositoryManager')
 
     _workdir: Workdir
     _repositories: dict[str, Repository]
@@ -304,7 +304,7 @@ class RepositoryManager:
         path = self._workdir.get_packages().get_path() / key
 
         if key not in self._repositories:
-            self._logger.debug(f'initializing repository {key}')
+            self._logger.debug(f'initializing {key}')
 
             repository = Repository(
                 url=url,
