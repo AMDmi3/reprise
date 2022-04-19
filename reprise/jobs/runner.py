@@ -178,7 +178,10 @@ class JobRunner:
             # either preinstall the package unconditionally for our own needs,
             # or use pkg-static binary located in some internal location and
             # call it by that path
-            pkg_package = await repository.get_package_by_name('pkg')
+            pkg_info = repository.get_package_info_by_name('pkg')
+            if pkg_info is None:
+                raise RuntimeError('no package for pkg')
+            pkg_package = await repository.get_package(pkg_info)
             await execute('tar', '-x', '-f', str(pkg_package.path), '-C', str(instance_zfs.get_path()), '--strip-components=1', '/usr/local/sbin/pkg-static')
 
             jail_pkg_path = instance_zfs.get_path() / 'usr/local/sbin/pkg'
@@ -188,7 +191,7 @@ class JobRunner:
 
             await prison.execute('pkg', 'update', '-q')
 
-            plan = await Planner(prison).prepare(
+            plan = await Planner(prison, repository).prepare(
                 jobspec.origin,
                 jobspec.origins_to_rebuild,
                 jobspec.build_as_nobody,

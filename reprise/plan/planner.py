@@ -15,17 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
-import io
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, cast
-
-from jsonslicer import JsonSlicer
+from typing import Optional
 
 from reprise.plan import Plan
 from reprise.plan.tasks import PackageTask, PortTask, Task
 from reprise.prison import Prison
+from reprise.repository import Repository
 from reprise.types import Port
 
 
@@ -53,9 +51,11 @@ class Planner:
     _logger = logging.getLogger('Planner')
 
     _jail: Prison
+    _repository: Repository
 
-    def __init__(self, jail: Prison) -> None:
+    def __init__(self, jail: Prison, repository: Repository) -> None:
         self._jail = jail
+        self._repository = repository
 
     async def _get_port_depends(self, port: Port) -> _PortDepends:
         flavor_args = ('env', 'FLAVOR=' + port.flavor) if port.flavor is not None else ()
@@ -92,19 +92,6 @@ class Planner:
 
         return lines[0] if lines and lines[0] else None
 
-    async def _get_package_manifest(self, pkgname: str) -> dict[str, Any] | None:
-        manifests_lines = await self._jail.execute('pkg', 'search', '-R', '--raw-format', 'json', '-e', '-S', 'name', pkgname, allow_failure=True)
-
-        if not manifests_lines:
-            return None
-
-        manifests = list(JsonSlicer(io.StringIO('\n'.join(manifests_lines)), (), yajl_allow_multiple_values=True))
-
-        if len(manifests) != 1:
-            raise RuntimeError(f'unexpected number of manifests for {pkgname}: {len(manifests)}')
-
-        return cast(dict[str, Any], manifests[0])
-
     async def prepare(self, origin: str, origins_to_rebuild: set[str], build_as_nobody: bool) -> Plan:
         tasks: dict[str, _TaskItem] = {}
         queue = [
@@ -132,10 +119,10 @@ class Planner:
             manifest = None
             if item.port is None:
                 assert item.pkgname is not None
-                manifest = await self._get_package_manifest(item.pkgname)
+                manifest = self._repository.get_package_info_by_name(item.pkgname)
                 if manifest is None:
                     raise RuntimeError('unexpected package repository inconsistency: no manifest for {item.pkgname}')
-                item.port = Port(manifest['origin'], manifest.get('annotations', {}).get('flavor'))
+                item.port = Port(manifest.origin, manifest.flavor)
 
             want_testing = item.port.origin == origin
             prefer_package = not want_testing and item.port.origin not in origins_to_rebuild
@@ -145,12 +132,12 @@ class Planner:
             if prefer_package:
                 # manifest may be None here if it hasn't been loaded yet
                 if manifest is None:
-                    manifest = await self._get_package_manifest(item.pkgname)
+                    manifest = self._repository.get_package_info_by_name(item.pkgname)
 
                 # manifest may be None if the package does not exist in the repository,
                 # in which case we'll fallback to the port building
                 if manifest is not None:
-                    pkgdepends = list(manifest.get('deps', {}).keys())
+                    pkgdepends = manifest.deps if manifest.deps is not None else {}
                     task_item = _TaskItem(
                         PackageTask(item.pkgname),
                         [item.consumer]

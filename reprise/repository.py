@@ -187,7 +187,7 @@ class Repository:
                     origin=item['origin'],
                     size=item['pkgsize'],
                     flavor=item.get('annotations', {}).get('flavor'),
-                    deps=[f'{k}-{v["version"]}.pkg' for k, v in item.get('deps', {}).items()] or None,
+                    deps=list(item.get('deps', {}).keys()) or None,
                 ))
 
             self._metadata = _RepositoryMetadata(
@@ -206,28 +206,22 @@ class Repository:
 
         packagesite_pickle_path.with_suffix('.new').replace(packagesite_pickle_path)
 
-    async def get_package_by_port(self, port: Port) -> Package:
+    def get_package_info_by_port(self, port: Port) -> PackageInfo | None:
         if self._metadata is None:
             raise RuntimeError('attempt to access uninitialized repository')
+        return self._metadata.by_port.get(port)
 
-        self._logger.debug(f'package requested by port {port}')
-        return await self._get_package(self._metadata.by_port[port])
-
-    async def get_package_by_name(self, name: str) -> Package:
+    def get_package_info_by_name(self, name: str) -> PackageInfo | None:
         if self._metadata is None:
             raise RuntimeError('attempt to access uninitialized repository')
+        return self._metadata.by_name.get(name)
 
-        self._logger.debug(f'package requested by name {name}')
-        return await self._get_package(self._metadata.by_name[name])
-
-    async def get_package_by_namever(self, namever: str) -> Package:
+    def get_package_info_by_namever(self, namever: str) -> PackageInfo | None:
         if self._metadata is None:
             raise RuntimeError('attempt to access uninitialized repository')
+        return self._metadata.by_namever.get(namever)
 
-        self._logger.debug(f'package requested by name-version {namever}')
-        return await self._get_package(self._metadata.by_namever[namever])
-
-    async def _get_package(self, package_info: PackageInfo) -> Package:
+    async def get_package(self, package_info: PackageInfo) -> Package:
         package_path = self._path / package_info.filename
 
         res = Package(**asdict(package_info), path=package_path)
