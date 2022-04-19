@@ -30,7 +30,7 @@ from reprise.jobs import JobSpec
 from reprise.lock import file_lock
 from reprise.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
 from reprise.plan.planner import Planner
-from reprise.prison import NetworkingIsolationMode, start_prison
+from reprise.prison import NetworkingMode, start_prison
 from reprise.repository import RepositoryManager
 from reprise.resources.enumerate import enumerate_resources
 from reprise.workdir import Workdir
@@ -159,7 +159,7 @@ class JobRunner:
                 shutil.chown(jail_work_path, 'nobody', 'nobody')
 
             self._logger.debug('starting prison')
-            prison = await start_prison(instance_zfs.get_path(), networking=NetworkingIsolationMode.UNRESTRICTED, hostname='reprise-fetcher')
+            prison = await start_prison(instance_zfs.get_path(), networking=NetworkingMode.UNRESTRICTED, hostname='reprise-fetcher')
 
             self._logger.debug('bootstrapping pkg')
 
@@ -210,7 +210,7 @@ class JobRunner:
                 self._logger.debug('setting up the prison for building')
 
                 await prison.destroy()  # XXX: implement and use modification of running prison
-                prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_build, hostname='reprise-builder')
+                prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_build, hostname='reprise-builder')
 
                 self._logger.info('installation')
 
@@ -222,7 +222,7 @@ class JobRunner:
 
                 if jobspec.do_test:
                     await prison.destroy()  # XXX: implement and use modification of running prison
-                    prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_isolation_test, hostname='reprise-tester')
+                    prison = await start_prison(instance_zfs.get_path(), networking=jobspec.networking_test, hostname='reprise-tester')
 
                     self._logger.info('testing')
 

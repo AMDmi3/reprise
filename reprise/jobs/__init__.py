@@ -20,7 +20,7 @@ from enum import Enum
 from pathlib import Path
 
 from reprise.jail import JailSpec
-from reprise.prison import NetworkingIsolationMode
+from reprise.prison import NetworkingMode
 
 # assuming default is somewhere in between "fast" and "best"
 PackageCompressionMode = Enum('PackageCompressionMode', 'NONE FAST DEFAULT BEST')
@@ -34,8 +34,8 @@ class JobSpec:
     jailspec: JailSpec
     origins_to_rebuild: set[str]
     fail_fast: bool
-    networking_isolation_build: NetworkingIsolationMode
-    networking_isolation_test: NetworkingIsolationMode
+    networking_build: NetworkingMode
+    networking_test: NetworkingMode
     variables: dict[str, str]
     options: dict[str, bool]
     do_test: bool

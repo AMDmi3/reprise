@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from reprise.prison import NetworkingIsolationMode, start_prison
+from reprise.prison import NetworkingMode, start_prison
 
 
 @pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='prison tests only supported on FreeBSD')
@@ -40,7 +40,7 @@ async def test_prison():
 @pytest.mark.skipif(os.getuid() != 0, reason='prison tests must be run as root')
 @pytest.mark.skipif('IM_OK_WITH_LEFTOVERS' not in os.environ, reason='please set IM_OK_WITH_LEFTOVERS env var if you acknowledge that these tests may produce leftover prisons')
 async def test_nonetwork():
-    prison = await start_prison(Path('/'), hostname='reprise_test_prison_nonetwork', networking=NetworkingIsolationMode.DISABLED)
+    prison = await start_prison(Path('/'), hostname='reprise_test_prison_nonetwork', networking=NetworkingMode.DISABLED)
 
     # expected to die with "Non-recoverable resolver failure"
     with pytest.raises(RuntimeError):

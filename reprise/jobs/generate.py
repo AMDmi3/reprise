@@ -28,7 +28,7 @@ from reprise.execute import execute
 from reprise.helpers import unicalize
 from reprise.jail.manager import JailManager
 from reprise.jobs import JobSpec, PackageCompressionMode
-from reprise.prison import NetworkingIsolationMode
+from reprise.prison import NetworkingMode
 
 _FALLBACK_PORTSDIR = '/usr/ports'
 
@@ -278,8 +278,8 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
                     jailspec=jailspec,
                     origins_to_rebuild=rebuild,
                     fail_fast=args.fail_fast,
-                    networking_isolation_build=NetworkingIsolationMode[args.networking_build],
-                    networking_isolation_test=NetworkingIsolationMode[args.networking_test],
+                    networking_build=NetworkingMode[args.networking_build],
+                    networking_test=NetworkingMode[args.networking_test],
                     variables=variables,
                     options=options,
                     do_test=not args.no_test,

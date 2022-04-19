@@ -29,7 +29,7 @@ from reprise.jobs import JobSpec, PackageCompressionMode
 from reprise.jobs.generate import generate_jobs
 from reprise.jobs.runner import JobResult, JobRunner, JobStatus
 from reprise.logging_ import setup_logging
-from reprise.prison import NetworkingIsolationMode
+from reprise.prison import NetworkingMode
 from reprise.repository import RepositoryManager, RepositoryUpdateMode
 from reprise.workdir import Workdir
 
@@ -87,7 +87,7 @@ async def parse_arguments() -> argparse.Namespace:
 
     group = parser.add_argument_group('Build environment tuning')
 
-    networking_choices = list(NetworkingIsolationMode.__members__)
+    networking_choices = list(NetworkingMode.__members__)
     group.add_argument(
         '--networking-build',
         type=str, default='DISABLED', choices=networking_choices,
