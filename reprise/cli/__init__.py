@@ -25,7 +25,7 @@ import termcolor
 
 from reprise.execute import log_execute_time_statistics
 from reprise.jail.manager import JailManager
-from reprise.jobs import JobSpec
+from reprise.jobs import JobSpec, PackageCompressionMode
 from reprise.jobs.generate import generate_jobs
 from reprise.jobs.runner import JobResult, JobRunner, JobStatus
 from reprise.logging_ import setup_logging
@@ -104,6 +104,11 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('--build-as-root', action='store_true', help='Do not drop privileges for building and testing')
     group.add_argument('--no-ccache', action='store_true', help='Do not use ccache')
     group.add_argument('--no-test', action='store_true', help='Skip testing')
+    group.add_argument(
+        '--package-compression',
+        type=str, default='NONE', choices=list(PackageCompressionMode.__members__),
+        help='Package compression mode (note that DEFAULT setting refers to pkg default, not reprise default) (default: NONE)',
+    )
 
     group = parser.add_argument_group(
         'Remote repository handling',

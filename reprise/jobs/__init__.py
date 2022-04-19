@@ -16,10 +16,14 @@
 # along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 from reprise.jail import JailSpec
 from reprise.prison import NetworkingIsolationMode
+
+# assuming default is somewhere in between "fast" and "best"
+PackageCompressionMode = Enum('PackageCompressionMode', 'NONE FAST DEFAULT BEST')
 
 
 @dataclass
@@ -37,6 +41,7 @@ class JobSpec:
     do_test: bool
     build_as_nobody: bool
     use_ccache: bool
+    package_compression: PackageCompressionMode
 
     @property
     def all_variables(self) -> dict[str, str]:
@@ -51,6 +56,13 @@ class JobSpec:
         if self.use_ccache:
             extra_vars['WITH_CCACHE_BUILD'] = 'YES'
             extra_vars['CCACHE_DIR'] = '/ccache'
+
+        if self.package_compression == PackageCompressionMode.NONE:
+            extra_vars['PKG_NOCOMPRESS'] = 'yes'
+        elif self.package_compression == PackageCompressionMode.FAST:
+            extra_vars['PKG_COMPRESSION_LEVEL'] = 'fast'
+        elif self.package_compression == PackageCompressionMode.BEST:
+            extra_vars['PKG_COMPRESSION_LEVEL'] = 'best'
 
         return self.variables | extra_vars
 

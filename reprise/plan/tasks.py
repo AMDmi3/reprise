@@ -127,7 +127,6 @@ class PortTask(Task):
             'PKG_ADD=false',
             'USE_PACKAGE_DEPENDS_ONLY=1',
             '_LICENSE_STATUS=accepted',
-            'PKG_NOCOMPRESS=yes',  # XXX: make tunable
             *self._flavorenv(),
             'make', '-C', f'/usr/ports/{self._port.origin}', 'package',
             log=log,
