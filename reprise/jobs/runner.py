@@ -143,17 +143,18 @@ class JobRunner:
 
             self._logger.debug('mounting filesystems')
 
-            async def noop() -> None:
-                pass
-
-            await asyncio.gather(
+            mounts = [
                 mount_devfs(instance_zfs.get_path() / 'dev'),
                 mount_nullfs(jobspec.portsdir, jail_ports_path, readonly=True),
                 mount_nullfs(jobspec.distdir, jail_distfiles_path, readonly=False),
                 mount_nullfs(host_packages_path, jail_packages_path, readonly=False),
-                mount_nullfs(host_ccache_path, jail_ccache_path, readonly=False) if jobspec.use_ccache else noop(),
                 mount_tmpfs(jail_work_path),
-            )
+            ]
+
+            if jobspec.use_ccache:
+                mounts.append(mount_nullfs(host_ccache_path, jail_ccache_path, readonly=False))
+
+            await asyncio.gather(*mounts)
 
             if jobspec.build_as_nobody:
                 shutil.chown(jail_work_path, 'nobody', 'nobody')
