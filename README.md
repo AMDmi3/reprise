@@ -44,7 +44,6 @@ and other heavy dependencies over and over again.
 
 Most of these will hopefully be solved at some point.
 
-- Much slower dependency graph calculation.
 - Not currently able to build and reuse packages, so dependencies
   which are set to be rebuilt are rebuilt for every run that need
   them.
@@ -55,9 +54,7 @@ Most of these will hopefully be solved at some point.
 - No automatic rebuilds of dependencies.
 - No support for workdir preservation and interactive mode.
 - No support for custom `make.conf` injection.
-- No support for options.
-- No support for ccache.
-- No support for build as user.
+- No support for manually setting options.
 
 ## Requirements
 

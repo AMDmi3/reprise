@@ -1,5 +1,14 @@
 # Change Log
 
+## unreleased
+
+* Added ccache support (enabled by default, disabled by `--no-ccache`)
+* Added build as user support (enabled by default, disabled by
+  `--build-as-root`)
+* Switched package management from `pkg` to our own repository
+  metadata handler, removing the need for slow pkg bootstrap and
+  update on each build and speeding up dependency graph calculation.
+
 ## 0.2.0
 
 * Fixed `--rebuild` having no effect
