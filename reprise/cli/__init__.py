@@ -109,6 +109,9 @@ async def parse_arguments() -> argparse.Namespace:
         type=str, default='NONE', choices=list(PackageCompressionMode.__members__),
         help='Package compression mode (note that DEFAULT setting refers to pkg default, not reprise default) (default: NONE)',
     )
+    group.add_argument('--tmpfs-work', action='store_true', help='Use tmpfs for WRKDIR directory')
+    group.add_argument('--tmpfs-localbase', action='store_true', help='Use tmpfs for LOCALBASE directory')
+    group.add_argument('--tmpfs-limit-mb', type=int, metavar='MiB', default=0, help='Max allowed tmpfs size (for each enabled tmpfs) in mebibytes (default: no limit)')
 
     group = parser.add_argument_group(
         'Remote repository handling',

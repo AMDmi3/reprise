@@ -286,4 +286,7 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
                     build_as_nobody=not args.build_as_root,
                     use_ccache=not args.no_ccache,
                     package_compression=PackageCompressionMode[args.package_compression],
+                    use_tmpfs_work=args.tmpfs_work,
+                    use_tmpfs_localbase=args.tmpfs_localbase,
+                    tmpfs_limit_bytes=args.tmpfs_limit_mb * 1024 * 1024,
                 )

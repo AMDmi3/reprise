@@ -34,6 +34,6 @@ async def mount_devfs(destination: Path) -> Mountpoint:
     return Mountpoint(destination)
 
 
-async def mount_tmpfs(destination: Path) -> Mountpoint:
-    await execute(_MOUNT_CMD, '-t', 'tmpfs', 'tmp', str(destination))
+async def mount_tmpfs(destination: Path, limit_bytes: int = 0) -> Mountpoint:
+    await execute(_MOUNT_CMD, '-t', 'tmpfs', f'-osize={limit_bytes}', 'tmp', str(destination))
     return Mountpoint(destination)

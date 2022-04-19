@@ -125,8 +125,9 @@ class JobRunner:
             jail_work_path = instance_zfs.get_path() / 'work'
             jail_packages_path = instance_zfs.get_path() / 'packages'
             jail_ccache_path = instance_zfs.get_path() / 'ccache'
+            jail_localbase_path = instance_zfs.get_path() / 'usr' / 'local'
 
-            for path in [jail_ports_path, jail_distfiles_path, jail_work_path, jail_packages_path]:
+            for path in [jail_ports_path, jail_distfiles_path, jail_work_path, jail_packages_path, jail_localbase_path]:
                 path.mkdir(parents=True, exist_ok=True)
 
             if jobspec.use_ccache:
@@ -148,11 +149,16 @@ class JobRunner:
                 mount_nullfs(jobspec.portsdir, jail_ports_path, readonly=True),
                 mount_nullfs(jobspec.distdir, jail_distfiles_path, readonly=False),
                 mount_nullfs(host_packages_path, jail_packages_path, readonly=False),
-                mount_tmpfs(jail_work_path),
             ]
 
             if jobspec.use_ccache:
                 mounts.append(mount_nullfs(host_ccache_path, jail_ccache_path, readonly=False))
+
+            if jobspec.use_tmpfs_work:
+                mounts.append(mount_tmpfs(jail_work_path, limit_bytes=jobspec.tmpfs_limit_bytes))
+
+            if jobspec.use_tmpfs_localbase:
+                mounts.append(mount_tmpfs(jail_localbase_path, limit_bytes=jobspec.tmpfs_limit_bytes))
 
             await asyncio.gather(*mounts)
 

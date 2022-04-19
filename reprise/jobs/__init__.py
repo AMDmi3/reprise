@@ -42,6 +42,9 @@ class JobSpec:
     build_as_nobody: bool
     use_ccache: bool
     package_compression: PackageCompressionMode
+    use_tmpfs_work: bool
+    use_tmpfs_localbase: bool
+    tmpfs_limit_bytes: int
 
     @property
     def all_variables(self) -> dict[str, str]:
