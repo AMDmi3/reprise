@@ -18,12 +18,13 @@
 import asyncio
 import logging
 import os
+import time
 from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
 
 from reprise.commands import JAIL_CMD, JEXEC_CMD, JLS_CMD
-from reprise.execute import execute
+from reprise.execute import execute, register_execute_time
 from reprise.resources import Resource
 
 _logger = logging.getLogger('Prison')
@@ -69,6 +70,9 @@ class Prison(Resource):
         ]
 
         logging.getLogger('Execute').debug('executing ' + ' '.join(full_args))
+
+        start = time.monotonic()
+
         proc = await asyncio.create_subprocess_exec(
             *full_args,
             stdin=asyncio.subprocess.DEVNULL,
@@ -77,6 +81,8 @@ class Prison(Resource):
         )
 
         await proc.communicate()
+
+        register_execute_time(time.monotonic() - start)
 
         assert proc.returncode is not None
         return proc.returncode

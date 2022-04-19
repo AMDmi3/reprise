@@ -23,6 +23,7 @@ from typing import Any, Collection
 
 import termcolor
 
+from reprise.execute import log_execute_time_statistics
 from reprise.jail.manager import JailManager
 from reprise.jobs import JobSpec
 from reprise.jobs.generate import generate_jobs
@@ -162,6 +163,8 @@ async def amain() -> None:
 
     if not args.quiet:
         print_results(results)
+
+    log_execute_time_statistics()
 
     success = all(result.status == JobStatus.SUCCESS for result in results)
 
