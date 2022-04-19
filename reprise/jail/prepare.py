@@ -38,7 +38,6 @@ _FREEBSD_RELEASES_URL = 'https://download.freebsd.org/ftp/releases'
 @dataclass
 class PreparedJail:
     jail_zfs: ZFS
-    packages_zfs: ZFS
 
 
 async def _check_jail_compilance(jail_zfs: ZFS, spec: JailSpec) -> bool:
@@ -113,11 +112,12 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
     jail_zfs = workdir.get_jail_master(spec.name)
     jail_path = jail_zfs.get_path()
 
-    packages_zfs = workdir.get_jail_packages(spec.name)
-
     with file_lock(jail_path.with_suffix('.lock')):
-        if not await packages_zfs.exists():
-            await packages_zfs.create(parents=True)
+        # we've moved from per-jail package datasets
+        legacy_packages_zfs = workdir.get_packages().get_child(spec.name)
+
+        if await legacy_packages_zfs.exists():
+            await legacy_packages_zfs.destroy()
 
         do_recreate = False
 
@@ -148,4 +148,4 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
 
             logger.info(f'successfully created jail {spec.name}')
 
-    return PreparedJail(jail_zfs, packages_zfs)
+    return PreparedJail(jail_zfs)

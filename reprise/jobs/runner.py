@@ -97,13 +97,18 @@ class JobRunner:
             self._logger.debug(f'cloning instance {instance_name}')
             await instance_zfs.clone_from(jail.jail_zfs, 'clean', parents=True)
 
-            self._logger.debug('creating directories')
-            ports_path = instance_zfs.get_path() / 'usr' / 'ports'
-            distfiles_path = instance_zfs.get_path() / 'distfiles'
-            work_path = instance_zfs.get_path() / 'work'
-            packages_path = instance_zfs.get_path() / 'packages'
+            self._logger.debug('creating host directories')
+            host_packages_path = self._workdir.get_packages().get_path() / jobspec.jailspec.name / 'packages'
 
-            for path in [ports_path, distfiles_path, work_path, packages_path]:
+            host_packages_path.mkdir(parents=True, exist_ok=True)
+
+            self._logger.debug('creating jail directories')
+            jail_ports_path = instance_zfs.get_path() / 'usr' / 'ports'
+            jail_distfiles_path = instance_zfs.get_path() / 'distfiles'
+            jail_work_path = instance_zfs.get_path() / 'work'
+            jail_packages_path = instance_zfs.get_path() / 'packages'
+
+            for path in [jail_ports_path, jail_distfiles_path, jail_work_path, jail_packages_path]:
                 path.mkdir(parents=True, exist_ok=True)
 
             self._logger.debug('installing resolv.conf')
@@ -121,14 +126,14 @@ class JobRunner:
             self._logger.debug('mounting filesystems')
             await asyncio.gather(
                 mount_devfs(instance_zfs.get_path() / 'dev'),
-                mount_nullfs(jobspec.portsdir, ports_path),
-                mount_nullfs(jobspec.distdir, distfiles_path, readonly=False),
-                mount_nullfs(jail.packages_zfs.get_path(), packages_path, readonly=False),
-                mount_tmpfs(work_path),
+                mount_nullfs(jobspec.portsdir, jail_ports_path, readonly=True),
+                mount_nullfs(jobspec.distdir, jail_distfiles_path, readonly=False),
+                mount_nullfs(host_packages_path, jail_packages_path, readonly=False),
+                mount_tmpfs(jail_work_path),
             )
 
             if jobspec.build_as_nobody:
-                shutil.chown(work_path, 'nobody', 'nobody')
+                shutil.chown(jail_work_path, 'nobody', 'nobody')
 
             self._logger.debug('starting prison')
             prison = await start_prison(instance_zfs.get_path(), networking=NetworkingIsolationMode.UNRESTRICTED, hostname='reprise-fetcher')

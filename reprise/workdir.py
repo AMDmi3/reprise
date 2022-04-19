@@ -59,7 +59,8 @@ class Workdir:
         workdir = Workdir(root)
 
         required_filesystems = [
-            workdir.get_logs()
+            workdir.get_logs(),
+            workdir.get_packages(),
         ]
 
         for filesystem in required_filesystems:
@@ -77,8 +78,8 @@ class Workdir:
     def get_jail_instance(self, name: str) -> ZFS:
         return self.root.get_child(Path('instances') / name)
 
-    def get_jail_packages(self, name: str) -> ZFS:
-        return self.root.get_child(Path('packages') / name)
+    def get_packages(self) -> ZFS:
+        return self.root.get_child(Path('packages'))
 
     def get_logs(self) -> ZFS:
         return self.root.get_child(Path('logs'))
