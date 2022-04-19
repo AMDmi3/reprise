@@ -63,6 +63,7 @@ class Planner:
         lines = await self._jail.execute(
             *flavor_args,
             'make', '-C', str(Path('/usr/ports') / port.origin),
+            '-V', 'PKG_DEPENDS',
             '-V', 'EXTRACT_DEPENDS',
             '-V', 'BUILD_DEPENDS',
             '-V', 'RUN_DEPENDS',

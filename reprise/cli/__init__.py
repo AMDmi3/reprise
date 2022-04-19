@@ -17,6 +17,7 @@
 
 import argparse
 import asyncio
+import datetime
 import sys
 from typing import Any, Collection
 
@@ -28,6 +29,7 @@ from reprise.jobs.generate import generate_jobs
 from reprise.jobs.runner import JobResult, JobRunner, JobStatus
 from reprise.logging_ import setup_logging
 from reprise.prison import NetworkingIsolationMode
+from reprise.repository import RepositoryManager, RepositoryUpdateMode
 from reprise.workdir import Workdir
 
 
@@ -76,6 +78,8 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('-j', '--jails', type=str, nargs='*', help='jails to test the port in')
     group.add_argument('-T', '--no-test', action='store_true', help='skip testing')
     group.add_argument('--build-as-root', action='store_true', help='do not drop privileges for building and testing')
+    group.add_argument('-u', '--force-repo-update', action='store_true', help='force repository metadata update')
+    group.add_argument('-U', '--no-repo-update', action='store_true', help='do not update repository metadata')
     group.add_argument('ports', metavar='PORT', nargs='*', default=[], help='port origin(s) to test')
 
     args = parser.parse_args()
@@ -144,7 +148,14 @@ async def amain() -> None:
         sys.exit(0)
 
     workdir = await Workdir.initialize()
-    runner = JobRunner(workdir=workdir)
+
+    repository_manager = RepositoryManager(
+        workdir,
+        update_mode=RepositoryUpdateMode.DISABLE if args.no_repo_update else RepositoryUpdateMode.FORCE if args.force_repo_update else RepositoryUpdateMode.AUTO,
+        update_period=datetime.timedelta(hours=6),  # XXX: optionize
+    )
+
+    runner = JobRunner(workdir=workdir, repository_manager=repository_manager)
 
     results = [await runner.run(spec) for spec in jobspecs]
 

@@ -24,12 +24,14 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from reprise.execute import execute
 from reprise.jail.prepare import get_prepared_jail
 from reprise.jobs import JobSpec
 from reprise.lock import file_lock
 from reprise.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
 from reprise.plan.planner import Planner
 from reprise.prison import NetworkingIsolationMode, start_prison
+from reprise.repository import RepositoryManager
 from reprise.resources.enumerate import enumerate_resources
 from reprise.workdir import Workdir
 
@@ -70,10 +72,13 @@ class JobResult:
 
 class JobRunner:
     _logger = logging.getLogger('Job')
-    _workdir: Workdir
 
-    def __init__(self, workdir: Workdir) -> None:
+    _workdir: Workdir
+    _repository_manager: RepositoryManager
+
+    def __init__(self, workdir: Workdir, repository_manager: RepositoryManager) -> None:
         self._workdir = workdir
+        self._repository_manager = repository_manager
 
     async def _cleanup_jail(self, path: Path) -> None:
         for resource in await enumerate_resources(path):
@@ -101,6 +106,11 @@ class JobRunner:
             host_packages_path = self._workdir.get_packages().get_path() / jobspec.jailspec.name / 'packages'
 
             host_packages_path.mkdir(parents=True, exist_ok=True)
+
+            repository = await self._repository_manager.get_repository(
+                release=jobspec.jailspec.release,
+                arch=jobspec.jailspec.arch
+            )
 
             self._logger.debug('creating jail directories')
             jail_ports_path = instance_zfs.get_path() / 'usr' / 'ports'
@@ -140,7 +150,26 @@ class JobRunner:
 
             self._logger.debug('bootstrapping pkg')
 
-            await prison.execute('pkg', 'bootstrap', '-q', '-y')
+            # pkg bootstrap
+            # XXX: this is a hack: it overrides dependency mechanisms and allows
+            # default pkg dependency checks (looking on ${LOCALBASE}/sbin/pkg to
+            # pass, but it does not really install pkg package and breaks ports
+            # which need libpkg.so, or depend on `pkg` package.
+            # We need to
+            # 1) Switch to dependency discovery based on Repository data only
+            # 2) Rework Tasks to allow more flexible dependency handling, e.g.
+            #    support FETCH_DEPENDS and PKG_DEPENDS properly
+            # then we could rely on ports' mechanisms for pkg installation, and
+            # either preinstall the package unconditionally for our own needs,
+            # or use pkg-static binary located in some internal location and
+            # call it by that path
+            pkg_package = await repository.get_package_by_name('pkg')
+            await execute('tar', '-x', '-f', str(pkg_package.path), '-C', str(instance_zfs.get_path()), '--strip-components=1', '/usr/local/sbin/pkg-static')
+
+            jail_pkg_path = instance_zfs.get_path() / 'usr/local/sbin/pkg'
+            jail_pkg_static_path = instance_zfs.get_path() / 'usr/local/sbin/pkg-static'
+            jail_pkg_static_path.link_to(jail_pkg_path)
+            # /pkg bootstrap
 
             await prison.execute('pkg', 'update', '-q')
 
