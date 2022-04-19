@@ -64,6 +64,13 @@ class Package(PackageInfo):
     path: Path
 
 
+_REPOSITORY_METADATA_VERSION = 1
+
+
+class BadRepositoryMetadataVersion(RuntimeError):
+    pass
+
+
 class _RepositoryMetadata:
     etag: str
     last_update: datetime.datetime
@@ -81,11 +88,14 @@ class _RepositoryMetadata:
 
         self._update_dicts()
 
-    def __getstate__(self) -> tuple[str, datetime.datetime, list[PackageInfo]]:
-        return (self.etag, self.last_update, self.packages)
+    def __getstate__(self) -> tuple[int, str, datetime.datetime, list[PackageInfo]]:
+        return (_REPOSITORY_METADATA_VERSION, self.etag, self.last_update, self.packages)
 
-    def __setstate__(self, state: tuple[str, datetime.datetime, list[PackageInfo]]) -> None:
-        self.etag, self.last_update, self.packages = state
+    def __setstate__(self, state: tuple[int, str, datetime.datetime, list[PackageInfo]]) -> None:
+        version, *rest = state
+        if version != _REPOSITORY_METADATA_VERSION:
+            raise BadRepositoryMetadataVersion(f'repository metadata version mismatch: {version} != {_REPOSITORY_METADATA_VERSION}')
+        self.etag, self.last_update, self.packages = rest  # type: ignore  # mypy cannot guess the type of `rest`
         self._update_dicts()
 
     def _update_dicts(self) -> None:
@@ -130,8 +140,8 @@ class Repository:
             self._logger.debug('loading repository metadata')
             with open(self._path / 'packagesite.pickle', 'rb') as fd:
                 self._metadata = pickle.load(fd)
-        except (FileNotFoundError, pickle.UnpicklingError) as e:
-            self._logger.error(f'loading repository metadata failed ({e}), update required')
+        except (FileNotFoundError, pickle.UnpicklingError, BadRepositoryMetadataVersion) as e:
+            self._logger.error(f'loading repository metadata failed ({e}), forced update required')
 
     def _get_base_url(self) -> str:
         return f'{self._url}/{self._abi}/{self._branch}'
