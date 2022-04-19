@@ -17,16 +17,18 @@
 
 import asyncio
 import logging
+from pathlib import Path
 
 _logger = logging.getLogger('Execute')
 
 
-async def execute(program: str, *args: str, allow_failure: bool = False) -> list[str]:
+async def execute(program: str, *args: str, allow_failure: bool = False, cwd: Path | None = None) -> list[str]:
     _logger.debug('executing ' + ' '.join([program] + list(args)))
     proc = await asyncio.create_subprocess_exec(
         program, *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL if allow_failure else asyncio.subprocess.PIPE,
+        cwd=cwd,
     )
 
     stdout, stderr = await proc.communicate()
