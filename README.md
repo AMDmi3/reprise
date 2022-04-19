@@ -190,8 +190,18 @@ takes `DISABLED` (no network possible), `RESTRICTED` (only localhost)
 or `UNRESTRICTED` (full network access) values. Currently it defaults
 to `RESTRICTED`, but you may try different values for some ports.
 
+```sh
+reprise --networking-isolation-test UNRESTRICTED
 ```
-reprise --networking-isolation-test
+
+### tmpfs support
+
+It is possible to enable tmpfs independently for workdirs and
+localbase, and it is possible to limit tmpfs size.
+
+```sh
+reprise --tmpfs-work --tmpfs-localbase --tmpfs-limit-mb 1024
+```
 
 ## Author
 
