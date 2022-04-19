@@ -8,6 +8,13 @@
 * Switched package management from `pkg` to our own repository
   metadata handler, removing the need for slow pkg bootstrap and
   update on each build and speeding up dependency graph calculation.
+* Added `NO_COMPRESS` to environment to further speedup
+
+Overall, this release brings significant speedup, for instance with
+warm package cache and ccache `reprise games/xmoto` is 2.6x faster
+than 0.2.0 and 20% faster than poudriere with some similar settings
+(`PKG_NOCOMPRESS`, ccache, tmpfs). `reprise -O devel/sdl20` is 3.1x
+faster.
 
 ## 0.2.0
 
