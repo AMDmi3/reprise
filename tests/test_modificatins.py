@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
+import shutil
+
 import pytest
 
 from reprise.jail import JailSpec
@@ -55,6 +57,7 @@ def test_jail_path(tmp_path):
     return tmp_path
 
 
+@pytest.mark.skipif(not shutil.which('cap_mkdb'), reason='cap_mkdb binary required')
 async def test_login_conf(test_jail_path):
     spec = JailSpec(
         name='13-ame64',
