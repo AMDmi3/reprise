@@ -34,55 +34,88 @@ from reprise.repository import RepositoryManager, RepositoryUpdateMode
 from reprise.workdir import Workdir
 
 
+class _Formatter(argparse.RawDescriptionHelpFormatter):
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        # limit to 80 chars
+        return argparse.HelpFormatter._fill_text(self, text, 80, indent)
+
+
 async def parse_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-
-    group = parser.add_argument_group('general')
-
-    group.add_argument('-d', '--debug', action='store_true', help='enable debug logging')
-    group.add_argument('-n', '--dry-run', action='store_true', help="don't actually build anything")
-    group.add_argument('-q', '--quiet', action='store_true', help="don't print summaries")
-    group.add_argument('--fail-fast', action='store_true', help='stop processing after the first failure')
-
-    networking_isolation_choices = list(NetworkingIsolationMode.__members__)
-    networking_isolation_metavar = '|'.join(NetworkingIsolationMode.__members__)
-    group.add_argument(
-        '--networking-isolation-build',
-        type=str,
-        default='DISABLED',
-        choices=networking_isolation_choices,
-        metavar=networking_isolation_metavar,
-        help='network isolation mode for port building'
-    )
-    group.add_argument(
-        '--networking-isolation-test',
-        type=str,
-        # XXX: should probably change to UNRESTRICTED when we support build-as-user,
-        # as a lot of tests involve arbitrary networking operations
-        default='RESTRICTED',
-        choices=networking_isolation_choices,
-        metavar=networking_isolation_metavar,
-        help='network isolation mode for port testing'
+    parser = argparse.ArgumentParser(
+        formatter_class=_Formatter,
+        description='Build and test FreeBSD ports in a clean environment.',
+        add_help=False
     )
 
-    group = parser.add_argument_group('job specification')
-    group.add_argument('-p', '--portsdir', metavar='PATH', type=str, help='ports tree directory to use in jails')
-    group.add_argument('--distdir', metavar='PATH', type=str, help='distfiles directory tree to use in jails (default: autodetect)')
+    group = parser.add_argument_group('General')
+    group.add_argument('-d', '--debug', action='store_true', help='Enable debug logging')
+    group.add_argument('-n', '--dry-run', action='store_true', help="Don't actually build anything")
+    group.add_argument('-q', '--quiet', action='store_true', help="Don't print summaries")
+    group.add_argument('-h', '--help', action='help', help='Show this help message and exit')
+    group.add_argument('--fail-fast', action='store_true', help='Stop processing on the first failure')
 
-    group.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', default=[], help='port origin(s) to rebuild from ports')
-    group.add_argument('-f', '--file', type=str, help='path to file with port origin(s) to test (- to read from stdin)')
-    group.add_argument('-V', '--vars', metavar='KEY=VALUE', nargs='+', default=[], type=str, help='port variables to set for the build')
-    group.add_argument('-O', '--options', action='store_true', help='test port options combinations')
-    group.add_argument('--include-options', type=str, nargs='+', help='options to only use with -O')
-    group.add_argument('--exclude-options', type=str, nargs='+', help='options to exclude from -O')
-    group.add_argument('--exclude-default-options', action='store_true', help="don't build default options with -O")
-    group.add_argument('-j', '--jails', type=str, nargs='*', help='jails to test the port in')
-    group.add_argument('-T', '--no-test', action='store_true', help='skip testing')
-    group.add_argument('--build-as-root', action='store_true', help='do not drop privileges for building and testing')
-    group.add_argument('--no-ccache', action='store_true', help='do not use ccache')
-    group.add_argument('-u', '--force-repo-update', action='store_true', help='force repository metadata update')
-    group.add_argument('-U', '--no-repo-update', action='store_true', help='do not update repository metadata')
-    group.add_argument('ports', metavar='PORT', nargs='*', default=[], help='port origin(s) to test')
+    group = parser.add_argument_group(
+        'Specifying ports to build',
+        """
+        Running %(prog)s in a port directory without any ports
+        explicitly specified will build the port from that directory.
+        """
+    )
+    group.add_argument('-p', '--portsdir', metavar='PATH', type=str, help='Ports tree to use (default: /usr/ports)')
+    group.add_argument('--distdir', metavar='PATH', type=str, help='Distfiles directory to use (default: autodetected)')
+
+    group.add_argument('-r', '--rebuild', metavar='PORT', nargs='*', default=[], help='Port origin(s) to rebuild from ports')
+    group.add_argument('-f', '--file', type=str, help='Path to file with port origin(s) to test (- to read from stdin)')
+    group.add_argument('ports', metavar='PORT', nargs='*', default=[], help='Ports (in category/port format) to test')
+
+    group = parser.add_argument_group('Controlling the port behavior')
+    group.add_argument('-V', '--vars', metavar='KEY=VALUE', nargs='+', default=[], type=str, help='Variables to set for the build via make.conf')
+
+    group = parser.add_argument_group(
+        'Build jobs generation',
+        """
+        By default, a single build job is ran in a `default` jail
+        and with the default options. You may enable builds in
+        multiple jails and with different options combinations.
+        """
+    )
+    group.add_argument('-O', '--options', action='store_true', help='Generate multiple port options combinations')
+    group.add_argument('--include-options', type=str, nargs='+', metavar='OPTION', help='Options to only use when generating combinations')
+    group.add_argument('--exclude-options', type=str, nargs='+', metavar='OPTION', help='Options to exclude from generating combinations')
+    group.add_argument('--exclude-default-options', action='store_true', help="Don't include default options combination")
+    group.add_argument('-j', '--jails', type=str, nargs='*', metavar='JAIL', help='Jails to test the port in')
+
+    group = parser.add_argument_group('Build environment tuning')
+
+    networking_choices = list(NetworkingIsolationMode.__members__)
+    group.add_argument(
+        '--networking-build',
+        type=str, default='DISABLED', choices=networking_choices,
+        help='Network isolation mode for port building'
+    )
+    # XXX: should probably change to UNRESTRICTED when we support build-as-user,
+    # as a lot of tests involve arbitrary networking operations
+    group.add_argument(
+        '--networking-test',
+        type=str, default='RESTRICTED', choices=networking_choices,
+        help='Network isolation mode for port testing'
+    )
+
+    group.add_argument('--build-as-root', action='store_true', help='Do not drop privileges for building and testing')
+    group.add_argument('--no-ccache', action='store_true', help='Do not use ccache')
+    group.add_argument('--no-test', action='store_true', help='Skip testing')
+
+    group = parser.add_argument_group(
+        'Remote repository handling',
+        """
+        Updating remote repository is mandatory on the first run
+        of any jail. After that, %(prog)s checks for repository update
+        on each build, and updates the repository only if it has
+        changed. You may chose to disable or force the update.
+        """
+    )
+    group.add_argument('-U', '--no-repo-update', action='store_true', help='Do not update repository metadata')
+    group.add_argument('-u', '--force-repo-update', action='store_true', help='Force repository metadata update')
 
     args = parser.parse_args()
 
