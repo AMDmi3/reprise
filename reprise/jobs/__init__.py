@@ -36,6 +36,7 @@ class JobSpec:
     options: dict[str, bool]
     do_test: bool
     build_as_nobody: bool
+    use_ccache: bool
 
     @property
     def all_variables(self) -> dict[str, str]:
@@ -47,16 +48,19 @@ class JobSpec:
         if (options := [k for k, v in self.options.items() if not v]):
             extra_vars['WITHOUT'] = ' '.join(options)
 
+        if self.use_ccache:
+            extra_vars['WITH_CCACHE_BUILD'] = 'YES'
+            extra_vars['CCACHE_DIR'] = '/ccache'
+
         return self.variables | extra_vars
 
     def __repr__(self) -> str:
         extra_components: list[str] = []
 
-        extra_components.extend(f'{k}={v}' for k, v in self.all_variables.items())
+        extra_components.extend(f'{k}={v}' for k, v in self.variables.items())
+        extra_components.extend(f'{"+" if v else "-"}{k}' for k, v in self.options.items())
 
         res = f'{self.origin} on {self.jailspec.name}'
-
         if extra_components:
-            res += ' (' + ', '.join(extra_components) + ')'
-
+            res += ' (' + ' '.join(extra_components) + ')'
         return res

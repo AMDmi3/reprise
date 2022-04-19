@@ -78,6 +78,7 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('-j', '--jails', type=str, nargs='*', help='jails to test the port in')
     group.add_argument('-T', '--no-test', action='store_true', help='skip testing')
     group.add_argument('--build-as-root', action='store_true', help='do not drop privileges for building and testing')
+    group.add_argument('--no-ccache', action='store_true', help='do not use ccache')
     group.add_argument('-u', '--force-repo-update', action='store_true', help='force repository metadata update')
     group.add_argument('-U', '--no-repo-update', action='store_true', help='do not update repository metadata')
     group.add_argument('ports', metavar='PORT', nargs='*', default=[], help='port origin(s) to test')

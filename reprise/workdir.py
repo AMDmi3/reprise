@@ -61,6 +61,7 @@ class Workdir:
         required_filesystems = [
             workdir.get_logs(),
             workdir.get_packages(),
+            workdir.get_ccache(),
         ]
 
         for filesystem in required_filesystems:
@@ -80,6 +81,9 @@ class Workdir:
 
     def get_packages(self) -> ZFS:
         return self.root.get_child(Path('packages'))
+
+    def get_ccache(self) -> ZFS:
+        return self.root.get_child(Path('ccache'))
 
     def get_logs(self) -> ZFS:
         return self.root.get_child(Path('logs'))

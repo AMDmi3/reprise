@@ -104,8 +104,14 @@ class JobRunner:
 
             self._logger.debug('creating host directories')
             host_packages_path = self._workdir.get_packages().get_path() / jobspec.jailspec.name / 'packages'
+            host_ccache_path = self._workdir.get_ccache().get_path() / ('nobody' if jobspec.build_as_nobody else 'root')
 
             host_packages_path.mkdir(parents=True, exist_ok=True)
+
+            if jobspec.use_ccache:
+                host_ccache_path.mkdir(parents=True, exist_ok=True)
+                if jobspec.build_as_nobody:
+                    shutil.chown(host_ccache_path, 'nobody', 'nobody')
 
             repository = await self._repository_manager.get_repository(
                 release=jobspec.jailspec.release,
@@ -117,9 +123,13 @@ class JobRunner:
             jail_distfiles_path = instance_zfs.get_path() / 'distfiles'
             jail_work_path = instance_zfs.get_path() / 'work'
             jail_packages_path = instance_zfs.get_path() / 'packages'
+            jail_ccache_path = instance_zfs.get_path() / 'ccache'
 
             for path in [jail_ports_path, jail_distfiles_path, jail_work_path, jail_packages_path]:
                 path.mkdir(parents=True, exist_ok=True)
+
+            if jobspec.use_ccache:
+                jail_ccache_path.mkdir(parents=True, exist_ok=True)
 
             self._logger.debug('installing resolv.conf')
             with open(instance_zfs.get_path() / 'etc' / 'resolv.conf', 'w') as fd:
@@ -134,11 +144,16 @@ class JobRunner:
             _replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
 
             self._logger.debug('mounting filesystems')
+
+            async def noop() -> None:
+                pass
+
             await asyncio.gather(
                 mount_devfs(instance_zfs.get_path() / 'dev'),
                 mount_nullfs(jobspec.portsdir, jail_ports_path, readonly=True),
                 mount_nullfs(jobspec.distdir, jail_distfiles_path, readonly=False),
                 mount_nullfs(host_packages_path, jail_packages_path, readonly=False),
+                mount_nullfs(host_ccache_path, jail_ccache_path, readonly=False) if jobspec.use_ccache else noop(),
                 mount_tmpfs(jail_work_path),
             )
 

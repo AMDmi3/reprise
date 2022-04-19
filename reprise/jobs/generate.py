@@ -284,4 +284,5 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
                     options=options,
                     do_test=not args.no_test,
                     build_as_nobody=not args.build_as_root,
+                    use_ccache=not args.no_ccache,
                 )
