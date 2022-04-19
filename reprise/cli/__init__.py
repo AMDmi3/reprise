@@ -34,15 +34,9 @@ from reprise.repository import RepositoryManager, RepositoryUpdateMode
 from reprise.workdir import Workdir
 
 
-class _Formatter(argparse.RawDescriptionHelpFormatter):
-    def _fill_text(self, text: str, width: int, indent: str) -> str:
-        # limit to 80 chars
-        return argparse.HelpFormatter._fill_text(self, text, 80, indent)
-
-
 async def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        formatter_class=_Formatter,
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=78),
         description='Build and test FreeBSD ports in a clean environment.',
         add_help=False
     )
