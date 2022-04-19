@@ -20,6 +20,7 @@ from abc import ABC, abstractmethod
 from typing import TextIO
 
 from reprise.prison import Prison
+from reprise.repository import PackageInfo, Repository
 from reprise.types import Port
 
 
@@ -40,24 +41,26 @@ class Task(ABC):
 
 
 class PackageTask(Task):
-    _pkgname: str
+    _repository: Repository
+    _package_info: PackageInfo
 
-    def __init__(self, pkgname: str) -> None:
-        self._pkgname = pkgname
+    def __init__(self, repository: Repository, package_info: PackageInfo) -> None:
+        self._repository = repository
+        self._package_info = package_info
 
     def __repr__(self) -> str:
-        return f'PackageTask({self._pkgname})'
+        return f'PackageTask({self._package_info.name})'
 
     async def fetch(self, prison: Prison, log: TextIO) -> bool:
-        self._logger.debug(f'started fetching for package {self._pkgname}')
-        returncode = await prison.execute_by_line('env', 'PKG_CACHEDIR=/packages', 'pkg', 'fetch', '-U', '-q', '-y', self._pkgname, log=log)
-        self._logger.debug(f'finished fetching for package {self._pkgname} with code {returncode}')
-        return returncode == 0
+        self._logger.debug(f'started fetching for package {self._package_info.name}')
+        await self._repository.get_package(self._package_info)
+        self._logger.debug(f'finished fetching for package {self._package_info.name}')
+        return True
 
     async def install(self, prison: Prison, log: TextIO) -> bool:
-        self._logger.debug(f'started installation for package {self._pkgname}')
-        returncode = await prison.execute_by_line('env', 'PKG_CACHEDIR=/packages', 'pkg', 'install', '-U', '-q', '-y', self._pkgname, log=log)
-        self._logger.debug(f'finished installation for package {self._pkgname} with code {returncode}')
+        self._logger.debug(f'started installation for package {self._package_info.name}')
+        returncode = await prison.execute_by_line('pkg', 'add', '-q', f'/packages/{self._package_info.filename}', log=log)
+        self._logger.debug(f'finished installation for package {self._package_info.name} with code {returncode}')
         return returncode == 0
 
     async def test(self, prison: Prison, log: TextIO) -> bool:

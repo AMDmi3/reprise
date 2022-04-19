@@ -139,7 +139,7 @@ class Planner:
                 if manifest is not None:
                     pkgdepends = manifest.deps if manifest.deps is not None else {}
                     task_item = _TaskItem(
-                        PackageTask(item.pkgname),
+                        PackageTask(self._repository, manifest),
                         [item.consumer]
                     )
                     tasks[item.pkgname] = task_item

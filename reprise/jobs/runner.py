@@ -102,8 +102,14 @@ class JobRunner:
             self._logger.debug(f'cloning instance {instance_name}')
             await instance_zfs.clone_from(jail.jail_zfs, 'clean', parents=True)
 
+            self._logger.debug('obtaining repository')
+            repository = await self._repository_manager.get_repository(
+                release=jobspec.jailspec.release,
+                arch=jobspec.jailspec.arch
+            )
+
             self._logger.debug('creating host directories')
-            host_packages_path = self._workdir.get_packages().get_path() / jobspec.jailspec.name / 'packages'
+            host_packages_path = repository.get_path()
             host_ccache_path = self._workdir.get_ccache().get_path() / ('nobody' if jobspec.build_as_nobody else 'root')
 
             host_packages_path.mkdir(parents=True, exist_ok=True)
@@ -112,11 +118,6 @@ class JobRunner:
                 host_ccache_path.mkdir(parents=True, exist_ok=True)
                 if jobspec.build_as_nobody:
                     shutil.chown(host_ccache_path, 'nobody', 'nobody')
-
-            repository = await self._repository_manager.get_repository(
-                release=jobspec.jailspec.release,
-                arch=jobspec.jailspec.arch
-            )
 
             self._logger.debug('creating jail directories')
             jail_ports_path = instance_zfs.get_path() / 'usr' / 'ports'
@@ -139,9 +140,6 @@ class JobRunner:
             with open(instance_zfs.get_path() / 'etc' / 'make.conf', 'w') as fd:
                 for k, v in jobspec.all_variables.items():
                     fd.write(f'{k}={v}\n')
-
-            self._logger.debug('fixing pkg config')
-            _replace_in_file(instance_zfs.get_path() / 'etc' / 'pkg' / 'FreeBSD.conf', 'quarterly', 'latest')
 
             self._logger.debug('mounting filesystems')
 
@@ -188,8 +186,6 @@ class JobRunner:
             jail_pkg_static_path = instance_zfs.get_path() / 'usr/local/sbin/pkg-static'
             jail_pkg_static_path.link_to(jail_pkg_path)
             # /pkg bootstrap
-
-            await prison.execute('pkg', 'update', '-q')
 
             plan = await Planner(prison, repository).prepare(
                 jobspec.origin,
