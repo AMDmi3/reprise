@@ -23,3 +23,7 @@ class JailSpec:
     name: str
     version: str
     arch: str
+
+    @property
+    def release(self) -> int:
+        return int(self.version.split('.')[0])
