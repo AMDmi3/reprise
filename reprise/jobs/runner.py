@@ -60,7 +60,7 @@ def _get_next_file_name(path: Path) -> Path:
     return path / str(max_log + 1)
 
 
-JobStatus = Enum('JobStatus', 'SUCCESS FETCH_FAILED BUILD_FAILED TEST_FAILED CRASHED')
+JobStatus = Enum('JobStatus', 'SUCCESS FETCH_FAILED BUILD_FAILED TEST_FAILED CRASHED SKIPPED')
 
 
 @dataclass
@@ -68,6 +68,7 @@ class JobResult:
     spec: JobSpec
     status: JobStatus
     log_path: Path | None = None
+    details: str | None = None
 
 
 class JobRunner:
@@ -193,6 +194,15 @@ class JobRunner:
             jail_pkg_static_path = instance_zfs.get_path() / 'usr/local/sbin/pkg-static'
             jail_pkg_static_path.link_to(jail_pkg_path)
             # /pkg bootstrap
+
+            lines = await prison.execute(
+                'env',
+                '_LICENSE_STATUS=accepted',
+                'make', '-C', f'/usr/ports/{jobspec.origin}', '-V', 'IGNORE',
+            )
+
+            if lines and lines[0]:
+                return result(status=JobStatus.SKIPPED, details=f'{lines[0]}')
 
             plan = await Planner(prison, repository).prepare(
                 jobspec.origin,

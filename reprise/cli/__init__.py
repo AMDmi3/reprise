@@ -138,31 +138,39 @@ def print_summary(specs: Collection[JobSpec]) -> None:
 def print_results(results: Collection[JobResult]) -> None:
     colored = termcolor.colored if sys.stdout.isatty() else not_colored
 
+    num_attempts = 0
     num_successes = 0
 
     print('Job results:')
     for result in results:
+        num_attempts += 1
         # here and below, a bunch of bogus `Cannot call function of unknown type` errors
         if result.status == JobStatus.SUCCESS:
-            status = colored('     SUCCESS', 'green')  # type: ignore
+            status = '     ' + colored('SUCCESS', 'green')  # type: ignore
             num_successes += 1
         elif result.status == JobStatus.FETCH_FAILED:
             status = colored('FETCH FAILED', 'red')  # type: ignore
         elif result.status == JobStatus.BUILD_FAILED:
             status = colored('BUILD FAILED', 'red')  # type: ignore
         elif result.status == JobStatus.TEST_FAILED:
-            status = colored(' TEST FAILED', 'yellow')  # type: ignore
+            status = ' ' + colored('TEST FAILED', 'red')  # type: ignore
         elif result.status == JobStatus.CRASHED:
-            status = colored('     CRASHED', 'magenta')  # type: ignore
+            status = '     ' + colored('CRASHED', 'red')  # type: ignore
+        elif result.status == JobStatus.SKIPPED:
+            num_attempts -= 1
+            status = '     ' + colored('SKIPPED', 'magenta')  # type: ignore
         else:
-            status = colored('     UNKNOWN', 'magenta')  # type: ignore
+            raise RuntimeError(f'unexpected job status {result.status}')
 
         log_message = ', log: ' + colored(str(result.log_path), 'cyan') if result.log_path else ''  # type: ignore
         print(f'{status} {result.spec}{log_message}')
 
-    success = num_successes == len(results)
+        if result.details:
+            print('             * ' + colored(result.details, 'cyan'))  # type: ignore
 
-    print(colored(f'{num_successes}/{len(results)}', 'green' if success else 'red'), 'successful jobs')  # type: ignore
+    success = num_successes == num_attempts
+
+    print(colored(f'{num_successes}/{num_attempts}', 'green' if success else 'red'), 'successful jobs')  # type: ignore
 
 
 async def amain() -> None:
