@@ -146,19 +146,19 @@ def print_results(results: Collection[JobResult]) -> None:
         num_attempts += 1
         # here and below, a bunch of bogus `Cannot call function of unknown type` errors
         if result.status == JobStatus.SUCCESS:
-            status = '     ' + colored('SUCCESS', 'green')  # type: ignore
+            status = colored('SUCCESS', 'green')  # type: ignore
             num_successes += 1
         elif result.status == JobStatus.FETCH_FAILED:
-            status = colored('FETCH FAILED', 'red')  # type: ignore
+            status = colored('FETFAIL', 'red')  # type: ignore
         elif result.status == JobStatus.BUILD_FAILED:
-            status = colored('BUILD FAILED', 'red')  # type: ignore
+            status = colored('BLDFAIL', 'red')  # type: ignore
         elif result.status == JobStatus.TEST_FAILED:
-            status = ' ' + colored('TEST FAILED', 'red')  # type: ignore
+            status = colored('TSTFAIL', 'red')  # type: ignore
         elif result.status == JobStatus.CRASHED:
-            status = '     ' + colored('CRASHED', 'red')  # type: ignore
+            status = colored('CRASHED', 'red')  # type: ignore
         elif result.status == JobStatus.SKIPPED:
             num_attempts -= 1
-            status = '     ' + colored('SKIPPED', 'magenta')  # type: ignore
+            status = colored('SKIPPED', 'magenta')  # type: ignore
         else:
             raise RuntimeError(f'unexpected job status {result.status}')
 
