@@ -166,7 +166,7 @@ def print_results(results: Collection[JobResult]) -> None:
         print(f'{status} {result.spec}{log_message}')
 
         if result.details:
-            print('             * ' + colored(result.details, 'cyan'))  # type: ignore
+            print('        * ' + colored(result.details, 'cyan'))  # type: ignore
 
     success = num_successes == num_attempts
 
