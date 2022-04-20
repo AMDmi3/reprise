@@ -30,7 +30,8 @@ async def mount_nullfs(source: Path, destination: Path, readonly: bool = True) -
 
 
 async def mount_devfs(destination: Path) -> Mountpoint:
-    await execute(_MOUNT_CMD, '-t', 'devfs', 'dev', str(destination))
+    # XXX: using hardcoded ruleset for devfsrules_jail
+    await execute(_MOUNT_CMD, '-t', 'devfs', '-oruleset=4', 'dev', str(destination))
     return Mountpoint(destination)
 
 
