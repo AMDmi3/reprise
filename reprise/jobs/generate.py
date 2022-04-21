@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, AsyncGenerator, Iterator
 
+from reprise.commands import MAKE_CMD
 from reprise.execute import execute
 from reprise.helpers import unicalize
 from reprise.jail.manager import JailManager
@@ -50,7 +51,7 @@ async def _discover_defaults(args: argparse.Namespace) -> Defaults:
     current_port = None
 
     if not portsdir and os.path.exists('Makefile'):
-        lines = await execute('make', '-V', 'PORTSDIR', '-V', 'PORTNAME', allow_failure=True)
+        lines = await execute(MAKE_CMD, '-V', 'PORTSDIR', '-V', 'PORTNAME', allow_failure=True)
         if len(lines) == 2 and all(lines):
             logger.debug('we seem to be in a port directory, using it')
 
@@ -65,7 +66,7 @@ async def _discover_defaults(args: argparse.Namespace) -> Defaults:
         logger.debug(f'assumed default PORTSDIR: {portsdir}')
 
     if not distdir:
-        lines = await execute('make', '-C', portsdir, '-V', 'DISTDIR', allow_failure=True)
+        lines = await execute(MAKE_CMD, '-C', portsdir, '-V', 'DISTDIR', allow_failure=True)
         if lines and lines[0]:
             distdir = lines[0]
             logger.debug(f'discovered default DISTDIR: {distdir}')
@@ -80,7 +81,7 @@ async def _discover_defaults(args: argparse.Namespace) -> Defaults:
 async def _get_port_options_vars(path_to_port: Path) -> dict[str, set[str]]:
     var_names = ['OPTIONS_DEFAULT', 'OPTIONS_DEFINE', 'OPTIONS_GROUP', 'OPTIONS_SINGLE', 'OPTIONS_MULTI', 'OPTIONS_RADIO']
 
-    lines = await execute('make', '-C', str(path_to_port), *(f'-V{var}' for var in var_names))
+    lines = await execute(MAKE_CMD, '-C', str(path_to_port), *(f'-V{var}' for var in var_names))
     if len(lines) != len(var_names):
         raise RuntimeError(f'failed to read option variables for {path_to_port}')
 
@@ -93,7 +94,7 @@ async def _get_port_options_vars(path_to_port: Path) -> dict[str, set[str]]:
     ]
 
     if var_names:
-        lines = await execute('make', '-C', str(path_to_port), *(f'-V{var}' for var in var_names))
+        lines = await execute(MAKE_CMD, '-C', str(path_to_port), *(f'-V{var}' for var in var_names))
         if len(lines) != len(var_names):
             raise RuntimeError(f'failed to read option variables for {path_to_port}')
 

@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from reprise.commands import MAKE_CMD
 from reprise.execute import execute
 from reprise.jail.prepare import get_prepared_jail
 from reprise.jobs import JobSpec
@@ -200,7 +201,7 @@ class JobRunner:
             lines = await prison.execute(
                 'env',
                 '_LICENSE_STATUS=accepted',
-                'make', '-C', f'/usr/ports/{jobspec.origin}', '-V', 'IGNORE',
+                MAKE_CMD, '-C', f'/usr/ports/{jobspec.origin}', '-V', 'IGNORE',
             )
 
             if lines and lines[0]:

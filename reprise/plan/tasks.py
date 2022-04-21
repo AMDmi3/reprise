@@ -21,6 +21,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TextIO
 
+from reprise.commands import MAKE_CMD
 from reprise.prison import Prison
 from reprise.repository import PackageInfo, Repository
 from reprise.types import Port
@@ -102,7 +103,7 @@ class PortTask(Task):
             'NO_IGNORE=1',
             '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
-            'make', '-C', f'/usr/ports/{self._port.origin}', 'checksum',
+            MAKE_CMD, '-C', f'/usr/ports/{self._port.origin}', 'checksum',
             log=log,
         )
 
@@ -130,7 +131,7 @@ class PortTask(Task):
             'USE_PACKAGE_DEPENDS_ONLY=1',
             '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
-            'make', '-C', f'/usr/ports/{self._port.origin}', 'package',
+            MAKE_CMD, '-C', f'/usr/ports/{self._port.origin}', 'package',
             log=log,
             user='nobody' if self._build_as_nobody else None,
         )
@@ -154,7 +155,7 @@ class PortTask(Task):
             'USE_PACKAGE_DEPENDS_ONLY=1',
             '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
-            'make', '-C', f'/usr/ports/{self._port.origin}', 'install-package',
+            MAKE_CMD, '-C', f'/usr/ports/{self._port.origin}', 'install-package',
             log=log,
         )
 
@@ -181,7 +182,7 @@ class PortTask(Task):
             'USE_PACKAGE_DEPENDS_ONLY=1',
             '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
-            'make', '-C', f'/usr/ports/{self._port.origin}', 'test',
+            MAKE_CMD, '-C', f'/usr/ports/{self._port.origin}', 'test',
             log=log,
             user='nobody' if self._build_as_nobody else None,
         )

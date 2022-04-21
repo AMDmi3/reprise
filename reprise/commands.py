@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+
 MOUNT_CMD = 'mount'
 UMOUNT_CMD = 'umount'
 ZFS_CMD = 'zfs'
@@ -22,3 +24,9 @@ ZPOOL_CMD = 'zpool'
 JAIL_CMD = 'jail'
 JEXEC_CMD = 'jexec'
 JLS_CMD = 'jls'
+
+if sys.platform.startswith('freebsd'):
+    MAKE_CMD = 'make'
+else:
+    # on Linux, make is usually GNU make, while we need BSD make
+    MAKE_CMD = 'bmake'

@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from reprise.commands import MAKE_CMD
 from reprise.plan import Plan
 from reprise.plan.tasks import PackageTask, PortTask, Task
 from reprise.prison import Prison
@@ -64,7 +65,7 @@ class Planner:
 
         lines = await self._jail.execute(
             *flavor_args,
-            'make', '-C', str(Path('/usr/ports') / port.origin),
+            MAKE_CMD, '-C', str(Path('/usr/ports') / port.origin),
             '-V', 'PKG_DEPENDS',
             '-V', 'EXTRACT_DEPENDS',
             '-V', 'BUILD_DEPENDS',
@@ -86,11 +87,11 @@ class Planner:
         flavor_args = ('env', 'FLAVOR=' + port.flavor) if port.flavor is not None else ()
 
         return (await self._jail.execute(
-            *flavor_args, 'make', '-C', f'/usr/ports/{port.origin}', '-V', 'PKGNAME'
+            *flavor_args, MAKE_CMD, '-C', f'/usr/ports/{port.origin}', '-V', 'PKGNAME'
         ))[0].rsplit('-', 1)[0]
 
     async def _get_port_default_flavor(self, origin: str) -> str | None:
-        lines = await self._jail.execute('make', '-C', f'/usr/ports/{origin}', '-V', 'FLAVOR')
+        lines = await self._jail.execute(MAKE_CMD, '-C', f'/usr/ports/{origin}', '-V', 'FLAVOR')
 
         return lines[0] if lines and lines[0] else None
 
