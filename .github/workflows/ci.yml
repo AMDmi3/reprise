@@ -3,12 +3,21 @@ on: [ push, pull_request ]
 jobs:
   build:
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        include:
+          - { python: '3.8', experimental: true }
+          - { python: '3.9', experimental: true }
+          - { python: '3.10', experimental: false }
+          - { python: '3.11.0-alpha.7', experimental: true }
+    continue-on-error: ${{ matrix.experimental }}
+    name: Python ${{ matrix.python }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup python
         uses: actions/setup-python@v2
         with:
-          python-version: "3.10.0"
+          python-version: ${{ matrix.python }}
       - name: Install apt dependencies
         run: |
           sudo apt-get -qq update

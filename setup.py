@@ -44,7 +44,7 @@ setup(
         'Topic :: Software Development :: Testing',
         'Topic :: System :: Archiving :: Packaging',
     ],
-    python_requires='>=3.10',
+    python_requires='>=3.8',
     install_requires=['aiohttp', 'jsonslicer>=0.1.7', 'termcolor>=1.1.0'],
     packages=find_packages(include=['reprise*']),
     entry_points={
