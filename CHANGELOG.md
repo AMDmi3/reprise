@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.2
+
+* Fix error in option combinations generated for SINGLE groups
+
 ## 0.3.1
 
 * Added compatibility with python 3.9 and python 3.8, so it's
