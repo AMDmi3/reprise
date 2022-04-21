@@ -1,23 +1,29 @@
 # Change Log
 
-## unreleased
+## 0.3.0
 
 * Added ccache support (enabled by default, disabled by `--no-ccache`)
 * Added build as user support (enabled by default, disabled by
   `--build-as-root`)
 * Switched package management from `pkg` to our own repository
   metadata handler, removing the need for slow pkg bootstrap and
-  update on each build and speeding up dependency graph calculation.
+  update on each build and speeding up dependency graph calculation
 * Allow to tune package compression level: disabling compression
   makes package generation way faster
-* Added control on tmpfs usage, allow to enable independently for
-  workdirs and localbase, and allow to limit tmpfs size
+* Added control on tmpfs usage, allow to enable tmpfs independently
+  for workdirs and localbase, and allow to limit tmpfs size
+* Imroved `--help` formatting
+* Restricted list of devfs entries in the jails
+* Added support for `BROKEN`/`IGNORE` ports - these now result in
+  `SKIPPED` job status, distinguishable and not counted towards
+  actual failures
+* Improved logs readability
 
 Overall, this release brings significant speedup, for instance with
-warm package cache and ccache `reprise games/xmoto` is 2.6x faster
+warm package cache and ccache, `reprise games/xmoto` runs 2.6x faster
 compared to 0.2.0 and 20% faster compared to poudriere with similar
 settings (package compression, ccache, tmpfs). `reprise -O devel/sdl20`
-is 3x faster.
+is 3x faster compared to 0.2.0.
 
 ## 0.2.0
 
