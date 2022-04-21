@@ -30,13 +30,14 @@ import aiohttp
 from jsonslicer import JsonSlicer
 
 from reprise.execute import execute
+from reprise.legacy import dataclass_slots_arg
 from reprise.types import Port
 from reprise.workdir import Workdir
 
 _CHUNK_SIZE = 1024 * 64
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=True, **dataclass_slots_arg)
 class PackageInfo:
     name: str
     version: str
@@ -61,7 +62,7 @@ class PackageInfo:
         return f'{self.port} aka {self.namever}'
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=True, **dataclass_slots_arg)
 class Package(PackageInfo):
     path: Path
 
