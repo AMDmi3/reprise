@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.3.1
+
+* Added compatibility with python 3.9 and python 3.8, so it's
+  possible to build reprise from a FreeBSD port.
+
 ## 0.3.0
 
 * Added ccache support (enabled by default, disabled by `--no-ccache`)
