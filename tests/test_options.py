@@ -25,7 +25,18 @@ from reprise.jobs.generate.options import (generate_options_combinations,
 
 
 @pytest.mark.skipif(not shutil.which(MAKE_CMD), reason=f'{MAKE_CMD} command required')
-async def test_get_port_options_vars(tmp_path):
+async def test_error(tmp_path):
+    with open(tmp_path / 'Makefile', 'w') as fd:
+        fd.write("""
+            this is not a make file
+        """)
+
+    with pytest.raises(RuntimeError):
+        await get_port_options_vars(tmp_path)
+
+
+@pytest.mark.skipif(not shutil.which(MAKE_CMD), reason=f'{MAKE_CMD} command required')
+async def test_get_vars(tmp_path):
     with open(tmp_path / 'Makefile', 'w') as fd:
         fd.write("""
             OPTIONS_DEFINE=O1 O2
@@ -74,7 +85,7 @@ async def test_get_port_options_vars(tmp_path):
 
 
 @pytest.mark.skipif(not shutil.which(MAKE_CMD), reason=f'{MAKE_CMD} command required')
-async def test_options_combinations_simple(tmp_path):
+async def test_plain_options(tmp_path):
     with open(tmp_path / 'Makefile', 'w') as fd:
         fd.write("""
             OPTIONS_DEFINE=O1 O2 O3 O4
@@ -92,4 +103,113 @@ async def test_options_combinations_simple(tmp_path):
         {'O2': False},
         {'O3': True},
         {'O4': False},
+    ]
+
+
+@pytest.mark.skipif(not shutil.which(MAKE_CMD), reason=f'{MAKE_CMD} command required')
+async def test_group_options(tmp_path):
+    with open(tmp_path / 'Makefile', 'w') as fd:
+        fd.write("""
+            OPTIONS_GROUP=G1
+            OPTIONS_GROUP_G1=O1 O2 O3 O4
+            OPTIONS_DEFAULT=O2 O4
+        """)
+
+    assert list(
+        generate_options_combinations(
+            await get_port_options_vars(tmp_path),
+            include_options=None,
+            exclude_options=set(),
+        )
+    ) == [
+        # each option toggled
+        {'O1': True},
+        {'O2': False},
+        {'O3': True},
+        {'O4': False},
+        # all on
+        {'O1': True, 'O3': True},
+        # all off
+        {'O2': False, 'O4': False},
+    ]
+
+
+@pytest.mark.skipif(not shutil.which(MAKE_CMD), reason=f'{MAKE_CMD} command required')
+async def test_single_options(tmp_path):
+    with open(tmp_path / 'Makefile', 'w') as fd:
+        fd.write("""
+            OPTIONS_SINGLE=S1
+            OPTIONS_SINGLE_S1=O1 O2 O3 O4
+            OPTIONS_DEFAULT=O2
+        """)
+
+    assert list(
+        generate_options_combinations(
+            await get_port_options_vars(tmp_path),
+            include_options=None,
+            exclude_options=set(),
+        )
+    ) == [
+        # each choice (except for default)
+        {'O1': True, 'O2': False},
+        {'O3': True, 'O2': False},
+        {'O4': True, 'O2': False},
+    ]
+
+
+@pytest.mark.skipif(not shutil.which(MAKE_CMD), reason=f'{MAKE_CMD} command required')
+async def test_radio_options(tmp_path):
+    with open(tmp_path / 'Makefile', 'w') as fd:
+        fd.write("""
+            OPTIONS_RADIO=R1
+            OPTIONS_RADIO_R1=O1 O2 O3 O4
+            OPTIONS_DEFAULT=O2
+        """)
+
+    assert list(
+        generate_options_combinations(
+            await get_port_options_vars(tmp_path),
+            include_options=None,
+            exclude_options=set(),
+        )
+    ) == [
+        # each choice (except for default)
+        {'O1': True, 'O2': False},
+        {'O3': True, 'O2': False},
+        {'O4': True, 'O2': False},
+        # all off
+        {'O2': False},
+    ]
+
+
+@pytest.mark.skipif(not shutil.which(MAKE_CMD), reason=f'{MAKE_CMD} command required')
+async def test_multi_options(tmp_path):
+    with open(tmp_path / 'Makefile', 'w') as fd:
+        fd.write("""
+            OPTIONS_MULTI=M1
+            OPTIONS_MULTI_M1=O1 O2 O3 O4 O5
+            OPTIONS_DEFAULT=O1 O2 O3
+        """)
+
+    assert list(
+        generate_options_combinations(
+            await get_port_options_vars(tmp_path),
+            include_options=None,
+            exclude_options=set(),
+        )
+    ) == [
+        # each choice
+        {'O2': False, 'O3': False},
+        {'O1': False, 'O3': False},
+        {'O1': False, 'O2': False},
+        {'O4': True, 'O1': False, 'O2': False, 'O3': False},
+        {'O5': True, 'O1': False, 'O2': False, 'O3': False},
+        # each option toggled
+        {'O1': False},
+        {'O2': False},
+        {'O3': False},
+        {'O4': True},
+        {'O5': True},
+        # all on
+        {'O4': True, 'O5': True},
     ]
