@@ -6,10 +6,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - { python: '3.8', experimental: true }
-          - { python: '3.9', experimental: true }
-          - { python: '3.10', experimental: false }
-          - { python: '3.11.0-alpha.7', experimental: true }
+          - { python: '3.8', experimental: true, codecov: false }
+          - { python: '3.9', experimental: true, codecov: false }
+          - { python: '3.10', experimental: false, codecov: true }
+          - { python: '3.11.0-alpha.7', experimental: true, codecov: false }
     continue-on-error: ${{ matrix.experimental }}
     name: Python ${{ matrix.python }}
     steps:
@@ -53,3 +53,4 @@ jobs:
           IM_OK_WITH_LEFTOVERS: yes
       - name: Push coverage info
         run: codecov
+        if: ${{ matrix.codecov }}
