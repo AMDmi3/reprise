@@ -82,7 +82,7 @@ def _iterate_options_combinations(variables: dict[str, set[str]]) -> Iterator[di
 
         for choice in sorted(options):
             logger.debug(f'considering variant with single {single} set to to {choice}')
-            yield {option: option == choice for o in options}
+            yield {option: option == choice for option in options}
 
     # RADIO is the same as single with additional variant of none
     for radio in variables['OPTIONS_RADIO']:
