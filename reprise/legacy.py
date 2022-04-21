@@ -16,6 +16,7 @@
 # along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
+from pathlib import Path
 
 _ver = (sys.version_info.major, sys.version_info.minor)
 
@@ -24,3 +25,12 @@ if _ver < (3, 10):
     dataclass_slots_arg = {}
 else:
     dataclass_slots_arg = {'slots': True}
+
+
+def is_path_relative_to(a: Path, b: Path) -> bool:
+    # same implementation as Path.is_relative_to from 3.10
+    try:
+        a.relative_to(b)
+        return True
+    except ValueError:
+        return False

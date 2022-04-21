@@ -23,6 +23,7 @@ from pathlib import Path
 
 from reprise.commands import JLS_CMD, MOUNT_CMD
 from reprise.execute import execute
+from reprise.legacy import is_path_relative_to
 from reprise.mount import Mountpoint
 from reprise.prison import Prison
 from reprise.resources import Resource
@@ -38,11 +39,11 @@ async def enumerate_mountpoints(prefix: Path) -> list[Resource]:
         if fstype == 'zfs':
             dataset = Path(src)
             mountpoint = Path(dst)
-            if mountpoint.is_relative_to(prefix):
+            if is_path_relative_to(mountpoint, prefix):
                 res.append(ZFS(dataset, mountpoint))
         else:
             mountpoint = Path(dst)
-            if mountpoint.is_relative_to(prefix):
+            if is_path_relative_to(mountpoint, prefix):
                 res.append(Mountpoint(mountpoint))
 
     return sorted(res, key=lambda res: res.get_path(), reverse=True)
@@ -57,7 +58,7 @@ async def enumerate_jails(prefix: Path) -> list[Resource]:
         jid = int(jail_info['jid'])
         path = Path(jail_info['path'])
 
-        if path.is_relative_to(prefix):
+        if is_path_relative_to(path, prefix):
             res.append(Prison(jid, path))
 
     return sorted(res, key=lambda res: res.get_path(), reverse=True)
