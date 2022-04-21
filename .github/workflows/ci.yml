@@ -11,8 +11,8 @@ jobs:
           python-version: "3.10.0"
       - name: Install apt dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install zfsutils-linux libyajl-dev
+          sudo apt-get -qq update
+          sudo apt-get -qq install zfsutils-linux libyajl-dev
       - name: Install python dependencies
         run: |
           pip install -r requirements.txt
