@@ -58,7 +58,7 @@ Most of these will hopefully be solved at some point.
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.8+
 - Python modules: `aiohttp`, `jsonslicer`, `termcolor`
 - ZFS
 - Root privileges
