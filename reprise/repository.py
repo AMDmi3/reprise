@@ -22,6 +22,7 @@ import datetime
 import logging
 import os
 import pickle
+import sys
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
@@ -70,6 +71,9 @@ class Package(PackageInfo):
 _REPOSITORY_METADATA_VERSION = 1
 
 
+_REPOSITORY_METADATA_TAG = f'{_REPOSITORY_METADATA_VERSION}/py{sys.version_info.major}.{sys.version_info.minor}'
+
+
 class BadRepositoryMetadataVersion(RuntimeError):
     pass
 
@@ -91,13 +95,13 @@ class _RepositoryMetadata:
 
         self._update_dicts()
 
-    def __getstate__(self) -> tuple[int, str, datetime.datetime, list[PackageInfo]]:
-        return (_REPOSITORY_METADATA_VERSION, self.etag, self.last_update, self.packages)
+    def __getstate__(self) -> tuple[str, str, datetime.datetime, list[PackageInfo]]:
+        return (_REPOSITORY_METADATA_TAG, self.etag, self.last_update, self.packages)
 
-    def __setstate__(self, state: tuple[int, str, datetime.datetime, list[PackageInfo]]) -> None:
-        version, *rest = state
-        if version != _REPOSITORY_METADATA_VERSION:
-            raise BadRepositoryMetadataVersion(f'repository metadata version mismatch: {version} != {_REPOSITORY_METADATA_VERSION}')
+    def __setstate__(self, state: tuple[str, str, datetime.datetime, list[PackageInfo]]) -> None:
+        tag, *rest = state
+        if tag != _REPOSITORY_METADATA_TAG:
+            raise BadRepositoryMetadataVersion(f'repository metadata tag mismatch: {tag} != {_REPOSITORY_METADATA_TAG}')
         self.etag, self.last_update, self.packages = rest  # type: ignore  # mypy cannot guess the type of `rest`
         self._update_dicts()
 
