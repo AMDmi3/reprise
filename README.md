@@ -65,10 +65,21 @@ Most of these will hopefully be solved at some point.
 
 ## Installation
 
-Install from FreeBSD ports:
+Install from FreeBSD ports or packages:
 
-```
+```shell
 cd /usr/ports/ports-mgmt/reprise && make install clean
+```
+```shell
+pkg install reprise
+```
+
+...or run from the git checkout:
+
+```shell
+git clone https://github.com/AMDmi3/reprise
+cd reprise
+env PYTHONPATH=. python3 -m reprise.cli --help
 ```
 
 ## Quick start
