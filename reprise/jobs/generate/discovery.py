@@ -66,6 +66,6 @@ async def discover_defaults(args: argparse.Namespace) -> Defaults:
 
     return Defaults(
         portsdir=Path(portsdir),
-        distdir=(distdir),
+        distdir=Path(distdir),
         current_port=current_port,
     )
