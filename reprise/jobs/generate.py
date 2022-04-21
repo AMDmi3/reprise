@@ -97,7 +97,7 @@ async def _get_port_options_vars(path_to_port: Path) -> dict[str, set[str]]:
         if len(lines) != len(var_names):
             raise RuntimeError(f'failed to read option variables for {path_to_port}')
 
-        res |= dict(zip(var_names, (set(line.split()) for line in lines)))
+        res.update(zip(var_names, (set(line.split()) for line in lines)))
 
     return res
 
@@ -132,34 +132,35 @@ def _iterate_options_combinations(variables: dict[str, set[str]]) -> Iterator[di
     for single in variables['OPTIONS_SINGLE']:
         options = variables[f'OPTIONS_SINGLE_{single}']
 
-        for option in sorted(options):
-            logger.debug(f'considering variant with single {single} set to to {option}')
-            yield {other: False for other in options} | {option: True}
+        for choice in sorted(options):
+            logger.debug(f'considering variant with single {single} set to to {choice}')
+            yield {option: option == choice for o in options}
 
     # RADIO is the same as single with additional variant of none
     for radio in variables['OPTIONS_RADIO']:
         options = variables[f'OPTIONS_RADIO_{radio}']
 
-        for option in sorted(options):
-            logger.debug(f'considering variant with radio {radio} set to {option}')
-            yield {other: False for other in options} | ({option: True} if option else {})
+        for choice in sorted(options):
+            logger.debug(f'considering variant with radio {radio} set to {choice}')
+            yield {option: option == choice for option in options}
 
         logger.debug(f'considering variant with radio {radio} fully disabled')
-        yield {other: False for other in options}
+        yield {option: False for option in options}
 
     # MULTI is the mix of GROUP without all-off variant and SINGLE
     for multi in variables['OPTIONS_MULTI']:
         options = variables[f'OPTIONS_MULTI_{multi}']
         default = options & enabled
 
+        for choice in sorted(options):
+            logger.debug(f'considering variant with multi {multi} set to {choice}')
+            yield {option: option == choice for option in options}
+
         for option in sorted(options):
             # be sure not to produce combination with no options enabled by toggling
             if {option} != default:
                 logger.debug(f'considering variant with multi {multi} option {option} toggled')
                 yield from ({option: True}, {option: False})
-
-            logger.debug(f'considering variant with multi {multi} set to {option}')
-            yield {other: False for other in options} | {option: True}
 
         logger.debug(f'considering variant with multi {multi} fully enabled')
         yield {option: True for option in options}

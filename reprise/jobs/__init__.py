@@ -50,26 +50,26 @@ class JobSpec:
 
     @property
     def all_variables(self) -> dict[str, str]:
-        extra_vars = {}
+        variables = dict(self.variables)
 
         if (options := [k for k, v in self.options.items() if v]):
-            extra_vars['WITH'] = ' '.join(options)
+            variables['WITH'] = ' '.join(options)
 
         if (options := [k for k, v in self.options.items() if not v]):
-            extra_vars['WITHOUT'] = ' '.join(options)
+            variables['WITHOUT'] = ' '.join(options)
 
         if self.use_ccache:
-            extra_vars['WITH_CCACHE_BUILD'] = 'YES'
-            extra_vars['CCACHE_DIR'] = '/ccache'
+            variables['WITH_CCACHE_BUILD'] = 'YES'
+            variables['CCACHE_DIR'] = '/ccache'
 
         if self.package_compression == PackageCompressionMode.NONE:
-            extra_vars['PKG_NOCOMPRESS'] = 'yes'
+            variables['PKG_NOCOMPRESS'] = 'yes'
         elif self.package_compression == PackageCompressionMode.FAST:
-            extra_vars['PKG_COMPRESSION_LEVEL'] = 'fast'
+            variables['PKG_COMPRESSION_LEVEL'] = 'fast'
         elif self.package_compression == PackageCompressionMode.BEST:
-            extra_vars['PKG_COMPRESSION_LEVEL'] = 'best'
+            variables['PKG_COMPRESSION_LEVEL'] = 'best'
 
-        return self.variables | extra_vars
+        return variables
 
     def __repr__(self) -> str:
         extra_components: list[str] = []
