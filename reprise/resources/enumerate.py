@@ -22,8 +22,8 @@ import json
 from pathlib import Path
 
 from reprise.commands import JLS_CMD, MOUNT_CMD
+from reprise.compat import is_path_relative_to
 from reprise.execute import execute
-from reprise.legacy import is_path_relative_to
 from reprise.mount import Mountpoint
 from reprise.prison import Prison
 from reprise.resources import Resource

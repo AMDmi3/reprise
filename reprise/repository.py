@@ -29,8 +29,8 @@ from pathlib import Path
 import aiohttp
 from jsonslicer import JsonSlicer
 
+from reprise.compat import dataclass_slots_arg
 from reprise.execute import execute
-from reprise.legacy import dataclass_slots_arg
 from reprise.types import Port
 from reprise.workdir import Workdir
 
