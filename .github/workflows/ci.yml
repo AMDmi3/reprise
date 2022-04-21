@@ -21,7 +21,7 @@ jobs:
       - name: Install apt dependencies
         run: |
           sudo apt-get -qq update
-          sudo apt-get -qq install zfsutils-linux libyajl-dev
+          sudo apt-get -qq install zfsutils-linux libyajl-dev bmake
       - name: Install python dependencies
         run: |
           pip install -r requirements.txt
