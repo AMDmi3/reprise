@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TextIO
 
@@ -36,18 +35,13 @@ class Plan:
     def add_task(self, task: Task) -> None:
         self._tasks.append(task)
 
-    async def fetch(self, jail: Prison, log: TextIO, jobs: int = 1) -> bool:
+    async def fetch(self, jail: Prison, log: TextIO) -> bool:
         self._logger.debug('fetch started')
-        sem = asyncio.Semaphore(jobs)
+
         success = True
-
-        async def wrapper(task: Task) -> None:
-            nonlocal success, sem
+        for task in self._tasks:
             if success:
-                async with sem:
-                    success = await task.fetch(jail, log) and success
-
-        await asyncio.gather(*map(wrapper, self._tasks))
+                success = await task.fetch(jail, log) and success
 
         self._logger.debug(f'fetch {"succeeded" if success else "failed"}')
 
@@ -56,7 +50,6 @@ class Plan:
     async def install(self, jail: Prison, log: TextIO) -> bool:
         self._logger.debug('install started')
 
-        # no parallelization(
         success = True
         for task in self._tasks:
             if success:
@@ -68,16 +61,11 @@ class Plan:
 
     async def test(self, jail: Prison, log: TextIO, jobs: int = 1) -> bool:
         self._logger.debug('testing started')
-        sem = asyncio.Semaphore(jobs)
+
         success = True
-
-        async def wrapper(task: Task) -> None:
-            nonlocal success, sem
+        for task in self._tasks:
             if success:
-                async with sem:
-                    success = await task.test(jail, log) and success
-
-        await asyncio.gather(*map(wrapper, self._tasks))
+                success = await task.test(jail, log) and success
 
         self._logger.debug(f'testing {"succeeded" if success else "failed"}')
 
