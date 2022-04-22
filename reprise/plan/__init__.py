@@ -36,14 +36,14 @@ class Plan:
     def add_task(self, task: Task) -> None:
         self._tasks.append(task)
 
-    async def fetch(self, jail: Prison, log: TextIO, jobs: int = 1, fail_fast: bool = False) -> bool:
+    async def fetch(self, jail: Prison, log: TextIO, jobs: int = 1) -> bool:
         self._logger.debug('fetch started')
         sem = asyncio.Semaphore(jobs)
         success = True
 
         async def wrapper(task: Task) -> None:
-            nonlocal success, sem, fail_fast
-            if not fail_fast or success:
+            nonlocal success, sem
+            if success:
                 async with sem:
                     success = await task.fetch(jail, log) and success
 
@@ -53,27 +53,27 @@ class Plan:
 
         return success
 
-    async def install(self, jail: Prison, log: TextIO, fail_fast: bool = False) -> bool:
+    async def install(self, jail: Prison, log: TextIO) -> bool:
         self._logger.debug('install started')
 
         # no parallelization(
         success = True
         for task in self._tasks:
-            if not fail_fast or success:
+            if success:
                 success = await task.install(jail, log) and success
 
         self._logger.debug(f'install {"succeeded" if success else "failed"}')
 
         return success
 
-    async def test(self, jail: Prison, log: TextIO, jobs: int = 1, fail_fast: bool = False) -> bool:
+    async def test(self, jail: Prison, log: TextIO, jobs: int = 1) -> bool:
         self._logger.debug('testing started')
         sem = asyncio.Semaphore(jobs)
         success = True
 
         async def wrapper(task: Task) -> None:
-            nonlocal success, sem, fail_fast
-            if not fail_fast or success:
+            nonlocal success, sem
+            if success:
                 async with sem:
                     success = await task.test(jail, log) and success
 

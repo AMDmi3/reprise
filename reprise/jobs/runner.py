@@ -223,7 +223,7 @@ class JobRunner:
                 self._logger.info('fetching')
 
                 with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
-                    if not await plan.fetch(prison, log=log, fail_fast=jobspec.fail_fast):
+                    if not await plan.fetch(prison, log=log):
                         self._logger.error(f'fetching failed, see log {log_path}')
                         return result(status=JobStatus.FETCH_FAILED)
 
@@ -234,7 +234,7 @@ class JobRunner:
 
                 self._logger.info('installation')
 
-                if not await plan.install(prison, log=log, fail_fast=jobspec.fail_fast):
+                if not await plan.install(prison, log=log):
                     self._logger.error(f'installation failed, log file: {log_path}')
                     return result(status=JobStatus.BUILD_FAILED)
 
@@ -246,7 +246,7 @@ class JobRunner:
 
                     self._logger.info('testing')
 
-                    if not await plan.test(prison, log=log, fail_fast=jobspec.fail_fast):
+                    if not await plan.test(prison, log=log):
                         self._logger.error(f'testing failed, log file: {log_path}')
                         return result(status=JobStatus.TEST_FAILED)
 

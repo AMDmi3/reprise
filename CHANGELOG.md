@@ -1,5 +1,9 @@
 # Change Log
 
+## unreleased
+
+* Fixed `--fail-fast` mode
+
 ## 0.3.2
 
 * Fix error in option combinations generated for SINGLE groups

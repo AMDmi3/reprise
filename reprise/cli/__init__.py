@@ -202,7 +202,13 @@ async def amain() -> None:
 
     runner = JobRunner(workdir=workdir, repository_manager=repository_manager)
 
-    results = [await runner.run(spec) for spec in jobspecs]
+    results = []
+
+    for spec in jobspecs:
+        result = await runner.run(spec)
+        results.append(result)
+        if args.fail_fast and result.status != JobStatus.SUCCESS:
+            break
 
     if not args.quiet:
         print_results(results)
