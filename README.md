@@ -49,7 +49,6 @@ Most of these will hopefully be solved at some point.
   them.
 - Not completely clean builds because of that: jail is polluted
   by build-time dependencies of many ports.
-- No timeout support.
 - No sanity checking (stage Q/A, shlibs and plist problem detection).
 - No automatic rebuilds of dependencies.
 - No support for workdir preservation and interactive mode.

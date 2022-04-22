@@ -33,6 +33,7 @@ from reprise.jobs import JobSpec
 from reprise.lock import file_lock
 from reprise.mount.filesystems import mount_devfs, mount_nullfs, mount_tmpfs
 from reprise.plan.planner import Planner
+from reprise.plan.tasks import TaskStatus
 from reprise.prison import NetworkingMode, start_prison
 from reprise.repository import RepositoryManager
 from reprise.resources.enumerate import enumerate_resources
@@ -63,7 +64,17 @@ def _get_next_file_name(path: Path) -> Path:
     return path / str(max_log + 1)
 
 
-JobStatus = Enum('JobStatus', 'SUCCESS FETCH_FAILED BUILD_FAILED TEST_FAILED CRASHED SKIPPED')
+JobStatus = Enum('JobStatus', """
+    SUCCESS
+    FETCH_FAILED
+    BUILD_FAILED
+    TEST_FAILED
+    FETCH_TIMEOUT
+    BUILD_TIMEOUT
+    TEST_TIMEOUT
+    CRASHED
+    SKIPPED
+""")
 
 
 @dataclass
@@ -72,6 +83,9 @@ class JobResult:
     status: JobStatus
     log_path: Path | None = None
     details: str | None = None
+
+    def is_ok(self) -> bool:
+        return self.status in [JobStatus.SUCCESS, JobStatus.SKIPPED]
 
 
 class JobRunner:
@@ -211,6 +225,9 @@ class JobRunner:
                 jobspec.origin,
                 jobspec.origins_to_rebuild,
                 jobspec.build_as_nobody,
+                jobspec.fetch_timeout,
+                jobspec.build_timeout,
+                jobspec.test_timeout,
             )
 
             log_path = _get_next_file_name(self._workdir.get_logs().get_path())
@@ -223,9 +240,9 @@ class JobRunner:
                 self._logger.info('fetching')
 
                 with file_lock(self._workdir.root.get_path() / 'fetch.lock'):
-                    if not await plan.fetch(prison, log=log):
+                    if (status := await plan.fetch(prison, log=log)) != TaskStatus.SUCCESS:
                         self._logger.error(f'fetching failed, see log {log_path}')
-                        return result(status=JobStatus.FETCH_FAILED)
+                        return result(status=JobStatus.FETCH_TIMEOUT if status == TaskStatus.TIMEOUT else JobStatus.FETCH_FAILED)
 
                 self._logger.debug('setting up the prison for building')
 
@@ -234,9 +251,9 @@ class JobRunner:
 
                 self._logger.info('installation')
 
-                if not await plan.install(prison, log=log):
+                if (status := await plan.install(prison, log=log)) != TaskStatus.SUCCESS:
                     self._logger.error(f'installation failed, log file: {log_path}')
-                    return result(status=JobStatus.BUILD_FAILED)
+                    return result(status=JobStatus.BUILD_TIMEOUT if status == TaskStatus.TIMEOUT else JobStatus.BUILD_FAILED)
 
                 self._logger.debug('setting up the prison for testing')
 
@@ -246,9 +263,9 @@ class JobRunner:
 
                     self._logger.info('testing')
 
-                    if not await plan.test(prison, log=log):
+                    if (status := await plan.test(prison, log=log)) != TaskStatus.SUCCESS:
                         self._logger.error(f'testing failed, log file: {log_path}')
-                        return result(status=JobStatus.TEST_FAILED)
+                        return result(status=JobStatus.TEST_TIMEOUT if status == TaskStatus.TIMEOUT else JobStatus.TEST_FAILED)
 
             self._logger.info(f'job succeeded, log file: {log_path}')
 

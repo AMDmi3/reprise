@@ -3,6 +3,7 @@
 ## unreleased
 
 * Fixed `--fail-fast` mode
+* Added timeout support
 
 ## 0.3.2
 

@@ -123,4 +123,7 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
                     use_tmpfs_work=args.tmpfs_work,
                     use_tmpfs_localbase=args.tmpfs_localbase,
                     tmpfs_limit_bytes=args.tmpfs_limit_mb * 1024 * 1024,
+                    fetch_timeout=args.timeout_fetch,
+                    build_timeout=args.timeout_build,
+                    test_timeout=args.timeout_test,
                 )

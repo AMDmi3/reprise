@@ -47,6 +47,9 @@ class JobSpec:
     use_tmpfs_work: bool
     use_tmpfs_localbase: bool
     tmpfs_limit_bytes: int
+    fetch_timeout: int
+    build_timeout: int
+    test_timeout: int
 
     @property
     def all_variables(self) -> dict[str, str]:

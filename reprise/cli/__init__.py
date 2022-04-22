@@ -106,6 +106,9 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('--tmpfs-work', action='store_true', help='Use tmpfs for WRKDIR directory')
     group.add_argument('--tmpfs-localbase', action='store_true', help='Use tmpfs for LOCALBASE directory')
     group.add_argument('--tmpfs-limit-mb', type=int, metavar='MiB', default=0, help='Max allowed tmpfs size (for each enabled tmpfs) in mebibytes (default: no limit)')
+    group.add_argument('--timeout-fetch', type=int, metavar='SECONDS', default=0, help='Timeout for fetching, 0 for no timeout (default: 3600)')
+    group.add_argument('--timeout-build', type=int, metavar='SECONDS', default=0, help='Timeout for building, 0 for no timeout (default: 7200)')
+    group.add_argument('--timeout-test', type=int, metavar='SECONDS', default=0, help='Timeout for testing, 0 for no timeout (default: 7200)')
 
     group = parser.add_argument_group(
         'Remote repository handling',
@@ -154,6 +157,12 @@ def print_results(results: Collection[JobResult]) -> None:
             status = colored('BLDFAIL', 'red')  # type: ignore
         elif result.status == JobStatus.TEST_FAILED:
             status = colored('TSTFAIL', 'red')  # type: ignore
+        elif result.status == JobStatus.FETCH_TIMEOUT:
+            status = colored('TIMEOUT', 'blue')  # type: ignore
+        elif result.status == JobStatus.BUILD_TIMEOUT:
+            status = colored('TIMEOUT', 'blue')  # type: ignore
+        elif result.status == JobStatus.TEST_TIMEOUT:
+            status = colored('TIMEOUT', 'blue')  # type: ignore
         elif result.status == JobStatus.CRASHED:
             status = colored('CRASHED', 'red')  # type: ignore
         elif result.status == JobStatus.SKIPPED:
@@ -207,7 +216,7 @@ async def amain() -> None:
     for spec in jobspecs:
         result = await runner.run(spec)
         results.append(result)
-        if args.fail_fast and result.status != JobStatus.SUCCESS:
+        if args.fail_fast and not result.is_ok():
             break
 
     if not args.quiet:

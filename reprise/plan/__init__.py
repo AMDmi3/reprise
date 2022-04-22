@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import TextIO
 
-from reprise.plan.tasks import Task
+from reprise.plan.tasks import Task, TaskStatus
 from reprise.prison import Prison
 
 
@@ -35,38 +35,41 @@ class Plan:
     def add_task(self, task: Task) -> None:
         self._tasks.append(task)
 
-    async def fetch(self, jail: Prison, log: TextIO) -> bool:
+    async def fetch(self, jail: Prison, log: TextIO) -> TaskStatus:
         self._logger.debug('fetch started')
 
-        success = True
+        status = TaskStatus.SUCCESS
+
         for task in self._tasks:
-            if success:
-                success = await task.fetch(jail, log) and success
+            if status == TaskStatus.SUCCESS:
+                status = await task.fetch(jail, log)
 
-        self._logger.debug(f'fetch {"succeeded" if success else "failed"}')
+        self._logger.debug(f'fetch finished: {status.name}')
 
-        return success
+        return status
 
-    async def install(self, jail: Prison, log: TextIO) -> bool:
+    async def install(self, jail: Prison, log: TextIO) -> TaskStatus:
         self._logger.debug('install started')
 
-        success = True
+        status = TaskStatus.SUCCESS
+
         for task in self._tasks:
-            if success:
-                success = await task.install(jail, log) and success
+            if status == TaskStatus.SUCCESS:
+                status = await task.install(jail, log)
 
-        self._logger.debug(f'install {"succeeded" if success else "failed"}')
+        self._logger.debug(f'install finished: {status.name}')
 
-        return success
+        return status
 
-    async def test(self, jail: Prison, log: TextIO, jobs: int = 1) -> bool:
+    async def test(self, jail: Prison, log: TextIO, jobs: int = 1) -> TaskStatus:
         self._logger.debug('testing started')
 
-        success = True
+        status = TaskStatus.SUCCESS
+
         for task in self._tasks:
-            if success:
-                success = await task.test(jail, log) and success
+            if status == TaskStatus.SUCCESS:
+                status = await task.test(jail, log)
 
-        self._logger.debug(f'testing {"succeeded" if success else "failed"}')
+        self._logger.debug(f'testing finished: {status.name}')
 
-        return success
+        return status

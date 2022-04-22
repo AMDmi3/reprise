@@ -95,7 +95,7 @@ class Planner:
 
         return lines[0] if lines and lines[0] else None
 
-    async def prepare(self, origin: str, origins_to_rebuild: set[str], build_as_nobody: bool) -> Plan:
+    async def prepare(self, origin: str, origins_to_rebuild: set[str], build_as_nobody: bool, fetch_timeout: int, build_timeout: int, test_timeout: int) -> Plan:
         tasks: dict[str, _TaskItem] = {}
         queue = [
             # the primary port to test
@@ -154,7 +154,14 @@ class Planner:
 
             portdepends = await self._get_port_depends(item.port)
             task_item = _TaskItem(
-                PortTask(item.port, do_test=want_testing, build_as_nobody=build_as_nobody),
+                PortTask(
+                    item.port,
+                    do_test=want_testing,
+                    build_as_nobody=build_as_nobody,
+                    fetch_timeout=fetch_timeout,
+                    build_timeout=build_timeout,
+                    test_timeout=test_timeout
+                ),
                 [item.consumer]
             )
             tasks[item.pkgname] = task_item
