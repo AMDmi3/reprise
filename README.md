@@ -196,13 +196,13 @@ Note that you need `--` to separate lists of ports.
 Port are not allowed to access network during build. The same should
 be true for testing, but is not on practice: a lot of tests require
 socket and network operation. It's possible to control network
-isolation for test with `--networking-isolation-test` option which
+isolation for test with `--networking-test` option which
 takes `DISABLED` (no network possible), `RESTRICTED` (only localhost)
 or `UNRESTRICTED` (full network access) values. Currently it defaults
 to `RESTRICTED`, but you may try different values for some ports.
 
 ```sh
-reprise --networking-isolation-test UNRESTRICTED
+reprise --networking-test UNRESTRICTED
 ```
 
 ### tmpfs support
