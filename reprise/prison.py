@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import pwd
 import time
 from enum import Enum
 from pathlib import Path
@@ -43,7 +44,9 @@ class Prison(Resource):
     async def execute(self, program: str, *args: Any, **kwargs: Any) -> list[str]:
         return await execute(
             JEXEC_CMD, '-l', str(self._jid),
-            '/usr/bin/env', '-L0',  # XXX: may be changed to -L- when 12.x is gone
+            '/usr/bin/env',
+            # XXX: may be changed to -L- when 12.x is gone
+            '-L0',
             program, *args, **kwargs
         )
 
@@ -61,7 +64,8 @@ class Prison(Resource):
             # the following argument clears all environment, leaving only stuff provided by the login class
             # so we need to explicitly define common vars like HOME below;
             '-i',
-            '-L0',  # XXX: may be changed to -L- when 12.x is gone
+            # XXX: should be changed to -L- when 12.x is gone
+            '-L', str(pwd.getpwnam(user).pw_uid if user is not None else 0),
             'HOME=/nonexistent',
             'SHELL=/bin/sh',
             *((f'TERM={term}',) if (term := os.environ.get('term')) else ()),

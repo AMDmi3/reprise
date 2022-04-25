@@ -25,6 +25,7 @@ from reprise.jail.prepare import _update_login_conf
 _LOGIN_CONF = """
 default:\\
     :welcome=/var/run/motd:\\
+    :path=/sbin /bin /usr/sbin /usr/bin /usr/local/sbin /usr/local/bin ~/bin:\\
     :setenv=BLOCKSIZE=K:\\
     :mail=/var/mail/$:
 
@@ -72,3 +73,4 @@ async def test_login_conf(test_jail_path):
 
     assert 'UNAME_m=amd64' in login_conf
     assert 'OSVERSION=1300139' in login_conf
+    assert '~/bin' not in login_conf

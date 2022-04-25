@@ -4,6 +4,9 @@
 
 * Fixed `--fail-fast` mode
 * Added timeout support
+* Fixed incorrect `$PATH` in the jails which led to attempts to
+  read /root/bin by unprivileged processes which led to unexpected
+  `EPERM` failures
 
 ## 0.3.2
 

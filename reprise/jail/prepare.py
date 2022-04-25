@@ -28,7 +28,7 @@ from reprise.zfs import ZFS
 
 # Bump this after modifying jail creation code to push changes to users;
 # When this number is changes, all jails are recreated
-_JAIL_EPOCH = 2
+_JAIL_EPOCH = 3
 
 _JAIL_TARBALLS = ['base.txz']
 
@@ -88,19 +88,23 @@ async def _update_login_conf(jail_path: Path, spec: JailSpec) -> None:
 
     tmp_path = login_conf_path.with_suffix('.new')
 
-    done = False
+    setenv_done = False
+    path_done = False
     with open(login_conf_path) as old:
         with open(tmp_path, 'x') as new:
             for line in old:
-                if ':setenv=' in line and not done:
+                if ':setenv=' in line and not setenv_done:
                     line = line.replace(':\\', f',{login_env_str}:\\')
-                    done = True
+                    setenv_done = True
+                if ':path=' in line and not path_done:
+                    line = line.replace(' ~/bin', '')
+                    path_done = True
 
                 new.write(line)
 
     tmp_path.replace(login_conf_path)
 
-    if not done:
+    if not setenv_done or not path_done:
         raise RuntimeError('failed to modify jail login.conf')
 
     await execute('cap_mkdb', str(login_conf_path))
