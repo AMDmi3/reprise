@@ -1,6 +1,6 @@
 # Change Log
 
-## unreleased
+## 0.4.0
 
 * Fixed `--fail-fast` mode
 * Added timeout support
