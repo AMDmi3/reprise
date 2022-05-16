@@ -204,6 +204,9 @@ class PortTask(Task):
 
         returncode = await prison.execute_by_line(
             *_timeout_arg(self._test_timeout),
+            'limits',
+            '-Bc',
+            'unlimited',  # XXX: make this tunable
             'env',
             'BATCH=1',
             'DISTDIR=/distfiles',
