@@ -3,6 +3,7 @@
 ## unreleased
 
 * Added support for interactive mode
+* Added plist checking
 
 ## 0.4.0
 
