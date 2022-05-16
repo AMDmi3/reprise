@@ -273,6 +273,12 @@ class JobRunner:
         except RuntimeError:
             self._logger.exception('job failed due to internal error')
         finally:
+            if jobspec.is_interactive:
+                self._logger.info('interactive mode: pausing before cleanup')
+                self._logger.info(f'* jail directory: {instance_zfs.get_path()}')
+                self._logger.info('press any key to clean up the jail...')
+                input()
+
             self._logger.info('cleaning up')
             await self._cleanup_jail(instance_zfs.get_path())
 

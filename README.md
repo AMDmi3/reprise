@@ -51,7 +51,7 @@ Most of these will hopefully be solved at some point.
   by build-time dependencies of many ports.
 - No sanity checking (stage Q/A, shlibs and plist problem detection).
 - No automatic rebuilds of dependencies.
-- No support for workdir preservation and interactive mode.
+- No support for workdir preservation.
 - No support for custom `make.conf` injection.
 - No support for manually setting options.
 

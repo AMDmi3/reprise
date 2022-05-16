@@ -126,4 +126,5 @@ async def generate_jobs(args: argparse.Namespace, jail_manager: JailManager) -> 
                     fetch_timeout=args.timeout_fetch,
                     build_timeout=args.timeout_build,
                     test_timeout=args.timeout_test,
+                    is_interactive=args.interactive,
                 )

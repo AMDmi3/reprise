@@ -50,6 +50,7 @@ class JobSpec:
     fetch_timeout: int
     build_timeout: int
     test_timeout: int
+    is_interactive: bool
 
     @property
     def all_variables(self) -> dict[str, str]:

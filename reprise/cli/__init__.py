@@ -109,6 +109,7 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('--timeout-fetch', type=int, metavar='SECONDS', default=0, help='Timeout for fetching, 0 for no timeout (default: 3600)')
     group.add_argument('--timeout-build', type=int, metavar='SECONDS', default=0, help='Timeout for building, 0 for no timeout (default: 7200)')
     group.add_argument('--timeout-test', type=int, metavar='SECONDS', default=0, help='Timeout for testing, 0 for no timeout (default: 7200)')
+    group.add_argument('-i', '--interactive', action='store_true', help='Pause before cleaning up the build directory to allow manual interaction with it')
 
     group = parser.add_argument_group(
         'Remote repository handling',

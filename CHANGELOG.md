@@ -1,5 +1,9 @@
 # Change Log
 
+## unreleased
+
+* Added support for interactive mode
+
 ## 0.4.0
 
 * Fixed `--fail-fast` mode
