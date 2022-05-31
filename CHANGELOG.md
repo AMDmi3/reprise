@@ -1,9 +1,10 @@
 # Change Log
 
-## unreleased
+## 0.5.0
 
 * Added support for interactive mode
 * Added plist checking
+* Enabled coredumps
 
 ## 0.4.0
 
