@@ -160,7 +160,7 @@ class PortTask(Task):
             'USE_PACKAGE_DEPENDS_ONLY=1',
             '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
-            MAKE_CMD, '-C', f'/usr/ports/{self._port.origin}', 'package', 'check-plist',
+            MAKE_CMD, '-C', f'/usr/ports/{self._port.origin}', 'stage', 'check-plist', 'package',
             log=log,
             user='nobody' if self._build_as_nobody else None,
         )
