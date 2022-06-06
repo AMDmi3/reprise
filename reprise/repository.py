@@ -251,7 +251,7 @@ class Repository:
             # wait till some other task fetches it for us
             while package_info.filename in self._inflight_fetches:
                 self._logger.debug(f'waiting for another task to fetch package {package_info.filename}')
-                self._fetch_event.wait()
+                await self._fetch_event.wait()
             if package_path.exists():
                 self._logger.debug(f'package {package_info.filename} fetched by another task successfully')
                 return res
