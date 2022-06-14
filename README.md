@@ -99,6 +99,14 @@ building.
 
 ## Usage
 
+### Configuration file
+
+Some (see below) aspects of reprise may be configured through the
+config file. It is searched in `~/.config/reprise/reprise.conf`
+or (if reprise is installed from the Ports Collection) in
+`/usr/local/etc/reprise/reprise.conf`, or may be specified explicitly
+with the `-c` option.
+
 ### Specifying ports
 
 Most common patter is to build/test a single port from the current
@@ -127,32 +135,35 @@ reprise -p /path/to/ports -f portlist
 
 ### Specifying jails
 
-Currently, **reprise** uses hardcoded list of FreeBSD versions
-to use for jails, which are the latest releases in the supported
-branches, currently `13.0-RELEASE` and `12.3-RELEASE`. A jail
-is configured for each of these with the native processor architecture.
-On `amd64`, additional pair of `i386` jails is configured.
-Summarizing, on `amd64` you'll have the following jails available:
+By default, **reprise** generates a single jail with the same
+architecture and system version as the host. You may override
+this behavior and specify jails through the config, for example:
 
-| Name     | Version      | Arch  | Notes   |
-|----------|--------------|-------|---------|
-| 13-amd64 | 13.0-RELEASE | amd64 | default |
-| 13-i386  | 13.0-RELEASE | i386  |         |
-| 12-amd64 | 12.3-RELEASE | amd64 |         |
-| 12-i386  | 12.3-RELEASE | i386  |         |
+```yaml
+jails:
+  13-amd64: { version: 13.1-RELEASE, arch: amd64, tags: [13, amd64, default] }
+  13-i386:  { version: 13.1-RELEASE, arch: i386,  tags: [13, i386 ] }
+  12-amd64: { version: 12.3-RELEASE, arch: amd64, tags: [12, amd64] }
+  12-i386:  { version: 12.3-RELEASE, arch: i386,  tags: [12, i386 ] }
+```
 
-You may select jails to use with `-j`/`--jails` argument, specifying
-either jail names or aliases, which include version (`12`, `13`) and arch
-(`i386`, `amd64`) based, `default` for default jail (latest version on
-native arch) and `all` for all jails. By default, `default` jail
-is used. If `-j` with no arguments is specified, `all` jails are used.
+Currently, only version/arch combinations available on
+[download.freebsd.org](https://download.freebsd.org/releases/) are
+supported.
+
+You may select jails to use for the build with `-j`/`--jails`
+argument, specifying any number of jail names or tags. If `-j` is
+not specified, only jails with `default` tag are used (or all jails
+if none of them has the tag). If `-j` is specified without an
+argument, all jails are used.
 
 Examples:
 
 ```shell
-reprise cat1/port1                   # default jail
-reprise -j -- cat1/port1             # all jails
-reprise -j 12-i386 13 -- cat1/port1  # 3 matching jails
+reprise cat1/port1                   # 13-amd64
+reprise -j -- cat1/port1             # all four jails
+reprise -j all -- cat1/port1         # the same
+reprise -j 12-i386 13 -- cat1/port1  # 13-amd64, 13-i386, 12-i386
 ```
 
 ### Option combinations testing
