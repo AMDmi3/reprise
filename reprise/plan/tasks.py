@@ -191,7 +191,22 @@ class PortTask(Task):
 
         self._logger.debug(f'finished installation for port {self._port} with code {returncode}')
 
-        return _code_to_status(returncode)
+        if (status := _code_to_status(returncode)) != TaskStatus.SUCCESS:
+            return status
+
+        print('================================================================================', file=log)
+        print('= Listing used shared libraries ================================================', file=log)
+        print('================================================================================', file=log, flush=True)
+
+        await prison.execute_by_line(
+            'env',
+            *self._flavorenv(),
+            # installed by _add_scripts
+            '/reprise-list-shared-libs', f'/usr/ports/{self._port.origin}',
+            log=log,
+        )
+
+        return TaskStatus.SUCCESS
 
     async def test(self, prison: Prison, log: TextIO) -> TaskStatus:
         if not self._do_test:

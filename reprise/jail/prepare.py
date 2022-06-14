@@ -28,7 +28,7 @@ from reprise.zfs import ZFS
 
 # Bump this after modifying jail creation code to push changes to users;
 # When this number is changes, all jails are recreated
-_JAIL_EPOCH = 3
+_JAIL_EPOCH = 4
 
 _JAIL_TARBALLS = ['base.txz']
 
@@ -110,6 +110,27 @@ async def _update_login_conf(jail_path: Path, spec: JailSpec) -> None:
     await execute('cap_mkdb', str(login_conf_path))
 
 
+def _add_scripts(jail_path: Path) -> None:
+    def fix_newlines(s: str) -> str:
+        return '\n'.join(map(str.strip, s.strip().split('\n')))
+
+    script_path = jail_path / 'reprise-list-shared-libs'
+    with open(script_path, 'w') as f:
+        f.write(
+            fix_newlines("""
+                #!/bin/sh
+
+                port_path="$1"
+
+                pkg query '%Fp' "$(make -C "$port_path" -V PKGNAME)" | \\
+                    xargs readelf -d 2>/dev/null | \\
+                    grep NEEDED | sort -u
+            """)
+        )
+
+    script_path.chmod(0o755)
+
+
 async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
     logger = logging.getLogger('Jail')
 
@@ -143,6 +164,8 @@ async def get_prepared_jail(workdir: Workdir, spec: JailSpec) -> PreparedJail:
 
             logger.debug('updating login.conf')
             await _update_login_conf(jail_zfs.get_path(), spec)
+
+            _add_scripts(jail_zfs.get_path())
 
             await jail_zfs.snapshot('clean')
 
