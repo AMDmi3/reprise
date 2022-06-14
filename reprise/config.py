@@ -31,7 +31,7 @@ _logger = logging.getLogger('Config')
 class JailSpecification(BaseModel):
     version: str
     arch: str
-    sets: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
 
 class Config(BaseModel):

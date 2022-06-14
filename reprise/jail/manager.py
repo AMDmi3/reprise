@@ -31,19 +31,19 @@ class JailManager:
     _logger = logging.getLogger('JailManager')
 
     _jails: list[JailSpec]
-    _sets: dict[str, list[JailSpec]]
+    _tags: dict[str, list[JailSpec]]
 
     def __init__(self) -> None:
         self._jails = []
-        self._sets = defaultdict(list)
+        self._tags = defaultdict(list)
 
-    def register_jail(self, name: str, version: str, arch: str, sets: list[str] | None = None) -> None:
+    def register_jail(self, name: str, version: str, arch: str, tags: list[str] | None = None) -> None:
         spec = JailSpec(name, version, arch)
 
         self._jails.append(spec)
-        if sets:
-            for setname in sets:
-                self._sets[setname].append(spec)
+        if tags:
+            for tag in tags:
+                self._tags[tag].append(spec)
 
         self._logger.debug(f'registered jail {spec}')
 
@@ -57,18 +57,18 @@ class JailManager:
 
         self.register_jail('default', version=version, arch=arch)
 
-    def finalize_sets(self) -> None:
-        self._sets['all'] = self._jails
-        if 'default' not in self._sets:
-            self._sets['default'] = self._jails
+    def finalize_tags(self) -> None:
+        self._tags['all'] = self._jails
+        if 'default' not in self._tags:
+            self._tags['default'] = self._jails
 
     def get_specs(self, names: Iterable[str]) -> list[JailSpec]:
         return unicalize(
             sum(
                 (
-                    self._sets[name]
+                    self._tags[name]
                     for name in names
-                    if name in self._sets
+                    if name in self._tags
                 ),
                 []
             )

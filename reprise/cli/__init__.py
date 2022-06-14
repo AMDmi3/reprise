@@ -200,7 +200,7 @@ async def amain() -> None:
     else:
         jail_manager.register_host_jail()
 
-    jail_manager.finalize_sets()
+    jail_manager.finalize_tags()
 
     jobspecs = [job async for job in generate_jobs(args, jail_manager)]
 
