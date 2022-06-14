@@ -154,6 +154,7 @@ class PortTask(Task):
             *_timeout_arg(self._build_timeout),
             'env',
             'BATCH=1',
+            'DEVELOPER=1',
             'DISTDIR=/distfiles',
             'WRKDIRPREFIX=/work',
             'PKG_ADD=false',
