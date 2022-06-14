@@ -1,0 +1,9 @@
+# Set up jails for latest versions of currently supported branches
+# for two major architectures. In no jails are specified for the
+# build 13-amd64 will be used as it's `default`.
+#
+#jails:
+#  13-amd64: { version: 13.1-RELEASE, arch: amd64, sets: [13, amd64, default] }
+#  13-i386:  { version: 13.1-RELEASE, arch: i386,  sets: [13, i386 ] }
+#  12-amd64: { version: 12.3-RELEASE, arch: amd64, sets: [12, amd64] }
+#  12-i386:  { version: 12.3-RELEASE, arch: i386,  sets: [12, i386 ] }
