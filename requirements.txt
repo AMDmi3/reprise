@@ -1,4 +1,5 @@
 PyYAML
 aiohttp
 jsonslicer
+pydantic
 termcolor
