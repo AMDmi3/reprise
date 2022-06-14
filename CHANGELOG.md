@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.6.0
+
+* Fix incorrect handling of concurrent fetches
+* Add DEVELOPER=1 to build environment to run stage-qa target for
+  more sanity checking
+* List shared libraries required by a just built package similar
+  to how poudriere does
+* Implement config and allow to specify jails in it
+* Without the config, only generate single jail similar to the host
+
 ## 0.5.0
 
 * Added support for interactive mode
