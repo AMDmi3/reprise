@@ -23,6 +23,7 @@ from typing import Any, Collection
 
 import termcolor
 
+from reprise.config import load_config
 from reprise.execute import log_execute_time_statistics
 from reprise.jail.manager import JailManager
 from reprise.jobs import JobSpec, PackageCompressionMode
@@ -46,6 +47,7 @@ async def parse_arguments() -> argparse.Namespace:
     group.add_argument('-n', '--dry-run', action='store_true', help="Don't actually build anything")
     group.add_argument('-q', '--quiet', action='store_true', help="Don't print summaries")
     group.add_argument('-h', '--help', action='help', help='Show this help message and exit')
+    group.add_argument('-c', '--config', type=str, help='Specify config file to use')
     group.add_argument('--fail-fast', action='store_true', help='Stop processing on the first failure')
 
     group = parser.add_argument_group(
@@ -188,7 +190,17 @@ async def amain() -> None:
 
     setup_logging(args.debug)
 
+    config = load_config(args.config)
+
     jail_manager = JailManager()
+
+    if config.jails:
+        for jail_name, jail_spec in config.jails.items():
+            jail_manager.register_jail(name=jail_name, **jail_spec.dict())
+    else:
+        jail_manager.register_host_jail()
+
+    jail_manager.finalize_sets()
 
     jobspecs = [job async for job in generate_jobs(args, jail_manager)]
 
