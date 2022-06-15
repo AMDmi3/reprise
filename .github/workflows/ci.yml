@@ -10,6 +10,7 @@ jobs:
           - { python: '3.9', experimental: false, codecov: false }
           - { python: '3.10', experimental: false, codecov: true }
           - { python: '3.11.0-beta.3', experimental: true, codecov: false }
+      fail-fast: false
     continue-on-error: ${{ matrix.experimental }}
     name: Python ${{ matrix.python }}
     steps:
