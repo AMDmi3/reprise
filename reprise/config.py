@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Iterator
+from typing import Dict, Iterator, List
 
 import yaml
 from pydantic import BaseModel, Field
@@ -31,11 +31,13 @@ _logger = logging.getLogger('Config')
 class JailSpecification(BaseModel):
     version: str
     arch: str
-    tags: list[str] = Field(default_factory=list)
+    # XXX: change to list[] and dict[] along with dropping python 3.8
+    # https://github.com/samuelcolvin/pydantic/issues/4146
+    tags: List[str] = Field(default_factory=list)
 
 
 class Config(BaseModel):
-    jails: dict[str, JailSpecification] = Field(default_factory=dict)
+    jails: Dict[str, JailSpecification] = Field(default_factory=dict)
 
 
 def _generate_config_paths() -> Iterator[Path]:
