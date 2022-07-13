@@ -15,14 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with reprise.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import annotations
-
 import asyncio
 import json
 from pathlib import Path
 
 from reprise.commands import JLS_CMD, MOUNT_CMD
-from reprise.compat import is_path_relative_to
 from reprise.execute import execute
 from reprise.mount import Mountpoint
 from reprise.prison import Prison
@@ -39,11 +36,11 @@ async def enumerate_mountpoints(prefix: Path) -> list[Resource]:
         if fstype == 'zfs':
             dataset = Path(src)
             mountpoint = Path(dst)
-            if is_path_relative_to(mountpoint, prefix):
+            if mountpoint.is_relative_to(prefix):
                 res.append(ZFS(dataset, mountpoint))
         else:
             mountpoint = Path(dst)
-            if is_path_relative_to(mountpoint, prefix):
+            if mountpoint.is_relative_to(prefix):
                 res.append(Mountpoint(mountpoint))
 
     return sorted(res, key=lambda res: res.get_path(), reverse=True)
@@ -58,7 +55,7 @@ async def enumerate_jails(prefix: Path) -> list[Resource]:
         jid = int(jail_info['jid'])
         path = Path(jail_info['path'])
 
-        if is_path_relative_to(path, prefix):
+        if path.is_relative_to(prefix):
             res.append(Prison(jid, path))
 
     return sorted(res, key=lambda res: res.get_path(), reverse=True)

@@ -32,6 +32,7 @@ from jsonslicer import JsonSlicer
 
 from reprise.compat import dataclass_slots_arg
 from reprise.execute import execute
+from reprise.lock import file_lock
 from reprise.types import Port
 from reprise.workdir import Workdir
 
@@ -313,32 +314,33 @@ class RepositoryManager:
         if key not in self._repositories:
             self._logger.debug(f'initializing {key}')
 
-            repository = Repository(
-                url=url,
-                release=release,
-                arch=arch,
-                path=path,
-                system=system,
-                branch=branch,
-            )
+            with file_lock(path / 'lock'):
+                repository = Repository(
+                    url=url,
+                    release=release,
+                    arch=arch,
+                    path=path,
+                    system=system,
+                    branch=branch,
+                )
 
-            if self._update_mode == RepositoryUpdateMode.FORCE:
-                self._logger.debug(f'forcing update of repository {key}')
-                await repository.update(force=True)
-            elif self._update_mode == RepositoryUpdateMode.AUTO:
-                age = repository.get_update_age()
-                if self._update_period is not None and age is not None and age < self._update_period:
-                    self._logger.debug(f'skipping update of repository {key} based on age')
+                if self._update_mode == RepositoryUpdateMode.FORCE:
+                    self._logger.debug(f'forcing update of repository {key}')
+                    await repository.update(force=True)
+                elif self._update_mode == RepositoryUpdateMode.AUTO:
+                    age = repository.get_update_age()
+                    if self._update_period is not None and age is not None and age < self._update_period:
+                        self._logger.debug(f'skipping update of repository {key} based on age')
+                    else:
+                        self._logger.debug(f'running update of repository {key}')
+                        await repository.update()
                 else:
-                    self._logger.debug(f'running update of repository {key}')
-                    await repository.update()
-            else:
-                self._logger.debug(f'update of repository {key} is disabled')
+                    self._logger.debug(f'update of repository {key} is disabled')
 
-            if not repository.is_initialized():
-                self._logger.error(f'repository {key} is not initialized, cannot continue')
-                raise RuntimeError(f'repository {key} is not initialized, cannot continue')
+                if not repository.is_initialized():
+                    self._logger.error(f'repository {key} is not initialized, cannot continue')
+                    raise RuntimeError(f'repository {key} is not initialized, cannot continue')
 
-            self._repositories[key] = repository
+                self._repositories[key] = repository
 
         return self._repositories[key]
