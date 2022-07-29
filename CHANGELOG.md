@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.6.1
+
+* Allow to specify jails to use by their individual names
+
 ## 0.6.0
 
 * Fix incorrect handling of concurrent fetches
