@@ -41,6 +41,7 @@ class JailManager:
         spec = JailSpec(name, version, arch)
 
         self._jails.append(spec)
+        self._tags[name].append(spec)
         if tags:
             for tag in tags:
                 self._tags[tag].append(spec)
