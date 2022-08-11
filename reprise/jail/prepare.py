@@ -28,9 +28,9 @@ from reprise.zfs import ZFS
 
 # Bump this after modifying jail creation code to push changes to users;
 # When this number is changes, all jails are recreated
-_JAIL_EPOCH = 4
+_JAIL_EPOCH = 5
 
-_JAIL_TARBALLS = ['base.txz']
+_JAIL_TARBALLS = ['base.txz', 'lib32.txz', 'src.txz']
 
 _FREEBSD_RELEASES_URL = 'https://download.freebsd.org/ftp/releases'
 
