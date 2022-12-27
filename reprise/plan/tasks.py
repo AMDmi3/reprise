@@ -159,6 +159,7 @@ class PortTask(Task):
             'WRKDIRPREFIX=/work',
             'PKG_ADD=false',
             'USE_PACKAGE_DEPENDS_ONLY=1',
+            'FORCE_PACKAGE=true',
             '_LICENSE_STATUS=accepted',
             *self._flavorenv(),
             MAKE_CMD, '-C', f'/usr/ports/{self._port.origin}', 'stage', 'check-plist', 'package',
